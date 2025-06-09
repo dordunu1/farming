@@ -1,0 +1,371 @@
+import React, { useState, useRef } from 'react';
+import { motion } from 'framer-motion';
+import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap } from 'lucide-react';
+import { useAccount, useContractWrite, useWaitForTransactionReceipt, useContractRead } from 'wagmi';
+import RiseFarmingABI from '../abi/RiseFarming.json';
+import { updateAfterWater } from '../lib/firebaseUser';
+
+interface TransactionModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  type: 'water' | 'harvest';
+  plotId: number | null;
+  energy: number;
+  setEnergy: (energy: number) => void;
+  riceTokens: number;
+  setRiceTokens: (tokens: number) => void;
+  plots: any[];
+  setPlots: (plots: any[]) => void;
+  waterCans: number;
+}
+
+function TransactionModal({ 
+  isOpen, 
+  onClose, 
+  type, 
+  plotId, 
+  energy, 
+  setEnergy, 
+  riceTokens, 
+  setRiceTokens, 
+  plots, 
+  setPlots, 
+  waterCans
+}: TransactionModalProps) {
+  const [transactionStatus, setTransactionStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [txHash, setTxHash] = useState('');
+  const { address } = useAccount();
+  const hasUpdatedRef = useRef(false);
+  const [onChainPlot, setOnChainPlot] = useState<any>(null);
+
+  // Contract write for waterCrop
+  const { writeContract, data: waterTxHash, isPending: isWaterPending, isError: isWaterError } = useContractWrite();
+  const { isSuccess: isWaterSuccess } = useWaitForTransactionReceipt({ hash: waterTxHash });
+
+  // Fetch on-chain plot state for harvest logic
+  const shouldFetch = isOpen && !!address && plotId !== null && typeof plotId === 'number';
+  const { data: fetchedPlot } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userPlots',
+    args: shouldFetch ? [address as `0x${string}`, plotId as number] : undefined,
+  });
+
+  const currentPlot = plots.find((p: any) => p.id === plotId);
+  const canWater = type === 'water' && currentPlot && currentPlot.waterLevel < 40;
+
+  React.useEffect(() => {
+    if (type === 'water' && isWaterSuccess && address && plotId && waterTxHash && !hasUpdatedRef.current) {
+      hasUpdatedRef.current = true;
+      // Update local plot state immediately
+      const updatedPlots = plots.map((plot: any) =>
+        plot.id === plotId
+          ? { ...plot, waterLevel: Math.min(100, (plot.waterLevel || 0) + 40), status: (plot.waterLevel || 0) + 40 > 80 ? 'watering' : 'growing' }
+          : plot
+      );
+      setPlots(updatedPlots);
+      updateAfterWater(address, plotId, waterTxHash).then(() => {
+        setEnergy(energy - 5); // Only deduct energy after success
+        setTransactionStatus('success');
+        setTxHash(waterTxHash);
+        setTimeout(() => {
+          onClose();
+          setTransactionStatus('idle');
+        }, 2000);
+      });
+    }
+  }, [type, isWaterSuccess, address, plotId, waterTxHash, onClose, energy, setPlots]);
+
+  React.useEffect(() => {
+    if (fetchedPlot) setOnChainPlot(fetchedPlot);
+  }, [fetchedPlot]);
+
+  // Reset hasUpdatedRef when a new transaction starts
+  React.useEffect(() => {
+    hasUpdatedRef.current = false;
+  }, [waterTxHash]);
+
+  if (!isOpen) return null;
+
+  const handleTransaction = async () => {
+    if (!currentPlot) return;
+    const energyCost = type === 'water' ? 5 : 15;
+    if (energy < energyCost) {
+      alert('Not enough energy!');
+      return;
+    }
+    if (type === 'water') {
+      if (typeof plotId === 'number' && waterCans > 0) {
+        setTransactionStatus('pending');
+        console.log('Calling waterCrop with:', { plotId, address });
+        writeContract({
+          address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+          abi: RiseFarmingABI as any,
+          functionName: 'waterCrop',
+          args: [plotId],
+          account: address,
+        });
+      }
+    } else if (type === 'harvest') {
+      if (typeof plotId === 'number') {
+        setTransactionStatus('pending');
+        console.log('Calling harvest with:', { plotId, address });
+        writeContract({
+          address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+          abi: RiseFarmingABI as any,
+          functionName: 'harvest',
+          args: [plotId],
+          account: address,
+        });
+      }
+    }
+  };
+
+  const getActionData = () => {
+    if (type === 'water') {
+      return {
+        title: 'Water Crops',
+        description: 'Water your rice crops to help them grow faster',
+        icon: <Droplets className="w-8 h-8 text-blue-500" />,
+        cost: '5 Energy',
+        benefit: '+40% water level, improved quality'
+      };
+    } else {
+      return {
+        title: 'Harvest Rice',
+        description: 'Harvest your fully grown rice and earn tokens',
+        icon: <Scissors className="w-8 h-8 text-yellow-500" />,
+        cost: '15 Energy',
+        benefit: `Earn ${currentPlot?.expectedYield || 150} Rice Tokens`
+      };
+    }
+  };
+
+  const actionData = getActionData();
+
+  // Add seedMeta for growth time (hours) by cropType (copy from FarmGrid)
+  const seedMeta: Record<string, { icon: string; growthTime: number }> = {
+    'Basic Rice Seed': { icon: '��', growthTime: 8 },
+    'Premium Rice Seed': { icon: '🌿', growthTime: 6 },
+    'Hybrid Rice Seed': { icon: '🌾', growthTime: 4 },
+    'Basic Rice': { icon: '🌱', growthTime: 8 },
+    'Premium Rice': { icon: '🌿', growthTime: 6 },
+    'Hybrid Rice': { icon: '🌾', growthTime: 4 },
+  };
+
+  // Use on-chain data for harvest logic
+  const now = Math.floor(Date.now() / 1000);
+  const growing = Array.isArray(onChainPlot) ? onChainPlot[5] : onChainPlot?.growing;
+  const readyAt = Array.isArray(onChainPlot) ? Number(onChainPlot[2]) : Number(onChainPlot?.readyAt);
+  const cooldownPassed = now > (readyAt + 60);
+  const canHarvestOnChain =
+    growing === true &&
+    readyAt > 0 &&
+    now > readyAt &&
+    cooldownPassed;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-16">
+      <motion.div 
+        className="bg-white rounded-2xl p-6 w-full max-w-md"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-semibold text-gray-800">{actionData.title}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {(transactionStatus === 'idle' || (type === 'water' && transactionStatus === 'pending')) && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                {actionData.icon}
+              </div>
+              <h3 className="text-lg font-medium text-gray-800 mb-2">Plot #{plotId}</h3>
+              <p className="text-gray-600">{actionData.description}</p>
+            </div>
+
+            {currentPlot && (() => {
+              let progressPercent = Math.round(currentPlot.progress || 0);
+              if (currentPlot.plantedAt && currentPlot.readyAt) {
+                const now = Date.now();
+                const plantedAtMs = currentPlot.plantedAt * 1000;
+                const readyAtMs = currentPlot.readyAt * 1000;
+                const total = readyAtMs - plantedAtMs;
+                const elapsed = now - plantedAtMs;
+                progressPercent = Math.max(0, Math.min(100, Math.round((elapsed / total) * 100)));
+              }
+              const waterPercent = Math.round(currentPlot.waterLevel || 0);
+              return (
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <h4 className="font-medium text-gray-800 mb-3">Plot Status</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Crop:</span>
+                      <span className="font-medium">{currentPlot.cropType}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Progress:</span>
+                      <span className="font-medium">{progressPercent}%</span>
+                    </div>
+                    {/* Growth Progress Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-1.5 mb-1">
+                      <motion.div
+                        className="h-1.5 rounded-full bg-emerald-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progressPercent}%` }}
+                        transition={{ duration: 0.5 }}
+                      />
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Water Level:</span>
+                      <span className="font-medium">{waterPercent}%</span>
+                    </div>
+                    {/* Water Level Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-1 mb-1">
+                      <motion.div
+                        className={`h-1 rounded-full ${
+                          waterPercent > 60 ? 'bg-blue-400' :
+                          waterPercent > 30 ? 'bg-yellow-400' : 'bg-red-400'
+                        }`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${waterPercent}%` }}
+                        transition={{ duration: 0.5 }}
+                      />
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Quality:</span>
+                      <span className="font-medium capitalize">{currentPlot.quality}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div className="bg-blue-50 rounded-xl p-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Action:</span>
+                <span className="font-medium">{actionData.title}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Energy Cost:</span>
+                <div className="flex items-center space-x-1">
+                  <Zap className="w-4 h-4 text-blue-500" />
+                  <span className="font-medium">{actionData.cost}</span>
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Benefit:</span>
+                <span className="font-medium text-emerald-600">{actionData.benefit}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Current Energy:</span>
+                <span className="font-medium">{energy}/100</span>
+              </div>
+            </div>
+
+            {type === 'water' && waterCans <= 0 && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-yellow-800 text-sm text-center">
+                <strong>You are out of Watering Cans!</strong><br />
+                <a href="/marketplace" className="underline text-blue-600 hover:text-blue-800">Buy more in the Marketplace</a>
+              </div>
+            )}
+
+            <div className="flex space-x-3">
+              <button
+                onClick={onClose}
+                className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              {type === 'water' && waterCans <= 0 ? (
+                <a
+                  href="/marketplace"
+                  className="flex-1 py-3 rounded-xl font-medium transition-all bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700 text-center"
+                  style={{ display: 'block' }}
+                >
+                  Buy Water Cans
+                </a>
+              ) : (
+                <button
+                  onClick={handleTransaction}
+                  disabled={
+                    type === 'harvest'
+                      ? (!canHarvestOnChain || energy < 15 || transactionStatus === 'pending' || (growing === false && cooldownPassed))
+                      : (energy < 5 || (type === 'water' && String(transactionStatus) === 'pending') || (type === 'water' && waterCans <= 0) || !canWater)
+                  }
+                  className={`flex-1 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    type === 'water'
+                      ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700'
+                      : 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700'
+                  }`}
+                >
+                  {type === 'water' && String(transactionStatus) === 'pending'
+                    ? 'Confirming…'
+                    : type === 'harvest' && String(transactionStatus) === 'pending'
+                      ? 'Harvesting…'
+                      : type === 'harvest' && growing === false && cooldownPassed
+                        ? 'Plot already harvested'
+                        : `Confirm ${actionData.title}`}
+                </button>
+              )}
+            </div>
+
+            {type === 'water' && currentPlot && currentPlot.waterLevel >= 40 && (
+              <div className="mt-2 text-xs text-blue-600 text-center">Watering is only allowed below 40% water level.</div>
+            )}
+
+            {type === 'harvest' && !cooldownPassed && (
+              <div className="mt-2 text-xs text-yellow-600 text-center">
+                Please wait 1 minute after crop is ready before harvesting (syncing on-chain).
+              </div>
+            )}
+          </div>
+        )}
+
+        {transactionStatus === 'success' && (
+          <div className="text-center py-8">
+            <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-800 mb-2">Transaction Successful!</h3>
+            <p className="text-gray-600 mb-4">Your {type} action has been completed.</p>
+            {type === 'harvest' && currentPlot && (
+              <div className="bg-emerald-50 rounded-xl p-4 mb-4">
+                <p className="text-emerald-700 font-medium">
+                  +{currentPlot.expectedYield} Rice Tokens earned!
+                </p>
+              </div>
+            )}
+            {txHash && (
+              <p className="text-xs text-gray-500">
+                Tx Hash: {txHash}
+              </p>
+            )}
+          </div>
+        )}
+
+        {transactionStatus === 'error' && (
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-800 mb-2">Transaction Failed</h3>
+            <p className="text-gray-600 mb-4">Something went wrong. Please try again.</p>
+            <button
+              onClick={() => setTransactionStatus('idle')}
+              className="bg-emerald-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-600 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+export default TransactionModal;

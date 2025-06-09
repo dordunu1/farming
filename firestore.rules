@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+      
+      // Transactions subcollection
+      match /transactions/{txId} {
+        allow read: if true;
+        allow create: if (
+            'type' in request.resource.data &&
+            'amount' in request.resource.data &&
+            'txHash' in request.resource.data &&
+            'timestamp' in request.resource.data &&
+            request.resource.data.txHash is string &&
+            request.resource.data.txHash.size() > 0 &&
+            request.resource.data.type is string &&
+            request.resource.data.amount is number &&
+            request.resource.data.timestamp != null
+          );
+        allow update, delete: if false;
+      }
+      
+      allow update: if (
+        // Energy cap logic
+        (!('energy' in request.resource.data) ||
+          (request.resource.data.energy <= 5) ||
+          (request.resource.data.energy > 5 && request.resource.data.energyPurchase == true)
+        ) &&
+        // Level/XP/Action tracking logic
+        (!('numPlanted' in request.resource.data) ||
+          (request.resource.data.numPlanted is number &&
+            request.resource.data.numPlanted >= resource.data.numPlanted)
+        ) &&
+        (!('numWatered' in request.resource.data) ||
+          (request.resource.data.numWatered is number &&
+            request.resource.data.numWatered >= resource.data.numWatered)
+        ) &&
+        (!('numHarvested' in request.resource.data) ||
+          (request.resource.data.numHarvested is number &&
+            request.resource.data.numHarvested >= resource.data.numHarvested)
+        ) &&
+        (!('totalXP' in request.resource.data) ||
+          (request.resource.data.totalXP is number &&
+            request.resource.data.totalXP >= resource.data.totalXP)
+        ) &&
+        (!('playerLevel' in request.resource.data) ||
+          (request.resource.data.playerLevel is number &&
+            request.resource.data.playerLevel == resource.data.playerLevel + 1)
+        ) &&
+        (!('plots' in request.resource.data) ||
+          (request.resource.data.plots.size() >= 8 && request.resource.data.plots.size() <= 16)
+        ) &&
+        (!('quests' in request.resource.data) ||
+          (request.resource.data.quests.size() > 0)
+        ) &&
+        (!('recentActivity' in request.resource.data) ||
+          (request.resource.data.recentActivity.size() > 0)
+        )
+      );
+      allow create: if true;
+    }
+  }
+} 
