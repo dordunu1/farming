@@ -3,7 +3,7 @@ import { Search, Zap, Droplets, Scissors, TrendingUp, Box, Info } from 'lucide-r
 import { useContractReads, useContractWrite, useWaitForTransactionReceipt, useAccount, useContractRead } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import RiseFarmingABI from '../abi/RiseFarming.json';
-import { addRecentActivity } from '../lib/firebaseUser';
+import { addRecentActivity, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
 const RISE_FARMING_ADDRESS = import.meta.env.VITE_RISE_FARMING_ADDRESS as `0x${string}`;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`;
 const DURABLE_TOOL_IDS = [17, 18, 6]; // Golden Harvester (Single), Bundle, Auto-Watering System
@@ -372,6 +372,19 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   // Add energy warning tooltip
   const showEnergyWarning = userEnergy !== undefined && Number(userEnergy) <= 2;
 
+  const { data: onChainRiceTokens } = useContractRead({
+    address: RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'riceTokens',
+    args: address ? [address] : undefined,
+  });
+  const { data: onChainXP } = useContractRead({
+    address: RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'totalXP',
+    args: address ? [address] : undefined,
+  });
+
   useEffect(() => {
     fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT')
       .then(res => res.json())
@@ -437,6 +450,20 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     if (txSuccess) {
       setPending(false);
       setSuccess(true);
+      // Log and sync activity after purchase
+      if (address && onChainRiceTokens !== undefined && onChainXP !== undefined && selectedItem) {
+        logAndSyncUserActivity(address, {
+          icon: getActivityIcon('buy', selectedItem.name),
+          action: `Bought ${quantity}x ${selectedItem.name}`,
+          time: new Date().toISOString(),
+          reward: selectedItem.currency === 'ETH' ? `-${selectedItem.usdPrice * quantity} ETH` : `-${selectedItem.usdPrice * quantity} RT`,
+          color: 'blue',
+          txHash: txHash || undefined,
+        }, {
+          riceTokens: Number(onChainRiceTokens),
+          totalXP: Number(onChainXP),
+        });
+      }
       // Success message is always shown in the modal for both single and bundle purchases, and for Energy Booster
       const timeout = setTimeout(() => {
         setSuccess(false);
@@ -445,7 +472,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       }, 2000);
       return () => clearTimeout(timeout);
     }
-  }, [txSuccess]);
+  }, [txSuccess, address, onChainRiceTokens, onChainXP, selectedItem, quantity, txHash]);
 
   // Close buy modal and reset state if wallet disconnects while modal is open
   useEffect(() => {

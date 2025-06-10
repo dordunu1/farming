@@ -5,7 +5,7 @@ import FarmGrid from './FarmGrid';
 import DailyRewardModal from './DailyRewardModal';
 import AchievementModal from './AchievementModal';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, useContractReads } from 'wagmi';
-import { getUserData, incrementFreeEnergy, onUserDataSnapshot, onRecentActivitySnapshot, Activity, Plot, resetDailyQuestsIfNeeded } from '../lib/firebaseUser';
+import { getUserData, incrementFreeEnergy, onUserDataSnapshot, onRecentActivitySnapshot, Activity, Plot, resetDailyQuestsIfNeeded, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
 import { doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import RiseFarmingABI from '../abi/RiseFarming.json';
@@ -52,6 +52,23 @@ function HomeScreen({
   setTotalXP
 }: HomeScreenProps) {
   const { address } = useAccount();
+
+  // Fetch on-chain RT balance (move to top)
+  const { data: onChainRiceTokens } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI,
+    functionName: 'riceTokens',
+    args: address ? [address] : undefined,
+  });
+
+  // Add on-chain XP fetch (move to top)
+  const { data: onChainXP } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'totalXP',
+    args: address ? [address as `0x${string}`] : undefined,
+  });
+
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [showAchievement, setShowAchievement] = useState(false);
   const [energy, setEnergy] = useState(0);
@@ -69,7 +86,7 @@ function HomeScreen({
   const [numPlanted, setNumPlanted] = useState(0);
   const [numWatered, setNumWatered] = useState(0);
 
-  const maxEnergy = 100;
+  const maxEnergy = 250;
   const energyPercentage = (energy / maxEnergy) * 100;
 
   // Read streak from contract
@@ -147,7 +164,7 @@ function HomeScreen({
             icon: <Droplets className="w-5 h-5 text-blue-400 inline mr-1" />,
             progress: Math.min(user.numWatered || 0, 5),
             target: 5,
-            reward: 1.5,
+            reward: 2,
             completed: (user.numWatered || 0) >= 5,
             claimed: dailyQuests.find(q => q.id === 2)?.claimed || false,
           },
@@ -157,7 +174,7 @@ function HomeScreen({
             icon: <Scissors className="w-5 h-5 text-yellow-600 inline mr-1" />,
             progress: Math.min(totalHarvests, 2),
             target: 2,
-            reward: 2,
+            reward: 3,
             completed: totalHarvests >= 2,
             claimed: dailyQuests.find(q => q.id === 3)?.claimed || false,
           },
@@ -243,7 +260,7 @@ function HomeScreen({
       icon: <Droplets className="w-5 h-5 text-blue-400 inline mr-1" />,
       progress: Math.min(numWatered || 0, 5),
       target: 5,
-      reward: 1.5,
+      reward: 2,
       completed: (numWatered || 0) >= 5,
       claimed: Boolean(claimedStates?.[1]?.result),
     },
@@ -253,7 +270,7 @@ function HomeScreen({
       icon: <Scissors className="w-5 h-5 text-yellow-600 inline mr-1" />,
       progress: Math.min(totalHarvests, 2),
       target: 2,
-      reward: 2,
+      reward: 3,
       completed: totalHarvests >= 2,
       claimed: Boolean(claimedStates?.[2]?.result),
     },
@@ -261,34 +278,48 @@ function HomeScreen({
 
   // Add effect to refetch claimedStates after a successful claim
   useEffect(() => {
-    if (isQuestClaimSuccess) {
+    if (
+      isQuestClaimSuccess &&
+      address &&
+      onChainRiceTokens !== undefined &&
+      onChainXP !== undefined
+    ) {
       if (typeof refetchClaimedStates === 'function') {
         refetchClaimedStates();
       }
       setClaimingQuestId(null);
+      // Log and sync activity after quest claim
+      logAndSyncUserActivity(address, {
+        icon: getActivityIcon('quest'),
+        action: 'Claimed quest reward',
+        time: new Date().toISOString(),
+        reward: `+${dailyQuests.find(q => q.claimed)?.reward || ''} RT`,
+        color: 'yellow',
+        txHash: questClaimData,
+      }, {
+        riceTokens: Number(onChainRiceTokens),
+        totalXP: Number(onChainXP),
+        totalHarvests: Number(onChainTotalHarvests),
+        energy: Number(onChainEnergy),
+        dailyStreak: Number(streakData),
+      });
     }
-  }, [isQuestClaimSuccess, refetchClaimedStates]);
+  }, [isQuestClaimSuccess, refetchClaimedStates, address, onChainRiceTokens, onChainXP, onChainTotalHarvests, onChainEnergy, streakData, dailyQuests, questClaimData]);
 
   // Update the quest claim button click handler
   const handleQuestClaim = (questId: number) => {
     if (!address) return;
     setClaimingQuestId(questId);
-    writeQuestClaim({
+    const txObj = {
       address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'claimQuestReward',
       args: [BigInt(questId)],
       account: address as `0x${string}`,
-    });
+    };
+    console.log('Calling claimQuestReward with:', txObj);
+    writeQuestClaim(txObj);
   };
-
-  // Fetch on-chain RT balance
-  const { data: onChainRiceTokens } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
-    abi: RiseFarmingABI,
-    functionName: 'riceTokens',
-    args: address ? [address] : undefined,
-  });
 
   useEffect(() => {
     if (address) {
@@ -392,6 +423,36 @@ function HomeScreen({
       account: address,
     });
   };
+
+  useEffect(() => {
+    if (
+      isClaimSuccess &&
+      address &&
+      onChainRiceTokens !== undefined &&
+      onChainXP !== undefined
+    ) {
+      // Log and sync activity after energy claim
+      logAndSyncUserActivity(address, {
+        icon: getActivityIcon('daily'),
+        action: 'Claimed energy',
+        time: new Date().toISOString(),
+        reward: '+10 Energy',
+        color: 'yellow',
+        txHash: claimTxHash,
+      }, {
+        riceTokens: Number(onChainRiceTokens),
+        totalXP: Number(onChainXP),
+        totalHarvests: Number(onChainTotalHarvests),
+        energy: Number(onChainEnergy),
+        dailyStreak: Number(streakData),
+      });
+    }
+  }, [isClaimSuccess, address, onChainRiceTokens, onChainXP, onChainTotalHarvests, onChainEnergy, streakData, claimTxHash]);
+
+  // Utility to truncate transaction hashes
+  function truncateHash(hash?: string) {
+    return hash ? `${hash.slice(0, 6)}...${hash.slice(-4)}` : '';
+  }
 
   return (
     <motion.div 
@@ -613,9 +674,9 @@ function HomeScreen({
       {/* Enhanced Action Buttons */}
       <motion.div variants={itemVariants} className="grid grid-cols-3 gap-6">
         {[
-          { icon: Plus, label: 'Plant Seeds', color: 'from-emerald-500 to-green-600', cost: '10 Energy' },
-          { icon: Droplets, label: 'Water Crops', color: 'from-blue-500 to-cyan-600', cost: '5 Energy' },
-          { icon: Scissors, label: 'Harvest Rice', color: 'from-yellow-500 to-orange-600', cost: '15 Energy' }
+          { icon: Plus, label: 'Plant Seeds', color: 'from-emerald-500 to-green-600', cost: '1 Energy' },
+          { icon: Droplets, label: 'Water Crops', color: 'from-blue-500 to-cyan-600', cost: '1 Energy' },
+          { icon: Scissors, label: 'Harvest Rice', color: 'from-yellow-500 to-orange-600', cost: '1 Energy' }
         ].map((action) => (
           <motion.button
             key={action.label}
@@ -674,7 +735,6 @@ function HomeScreen({
             </motion.button>
           </div>
         </div>
-        
         <FarmGrid 
           isWalletConnected={isWalletConnected}
           energy={energy}
@@ -693,32 +753,23 @@ function HomeScreen({
           <TrendingUp className="w-6 h-6 mr-3 text-emerald-600" />
           Recent Activity
         </h3>
-        <div className="space-y-4">
-          {recentActivity.slice(activityPage * ACTIVITY_PAGE_SIZE, (activityPage + 1) * ACTIVITY_PAGE_SIZE).map((activity, index) => (
-            <motion.div
-              key={index + activityPage * ACTIVITY_PAGE_SIZE}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.1 }}
-              className="flex items-center justify-between py-4 px-4 rounded-xl hover:bg-gray-50 transition-colors"
-            >
-              <div className="flex items-center space-x-4">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${activity.color}`}>
-                  {typeof activity.icon === 'string' ? (
-                    <span className="text-xl">{activity.icon}</span>
-                  ) : null}
-                </div>
+        <div className="space-y-3">
+          {recentActivity.slice(activityPage * ACTIVITY_PAGE_SIZE, (activityPage + 1) * ACTIVITY_PAGE_SIZE).map((activity, idx) => (
+            <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-xl shadow mb-1 border border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl" title={activity.action}>{activity.icon}</span>
                 <div>
-                  <p className="font-semibold text-gray-800">{activity.action}</p>
-                  <p className="text-sm text-gray-500">{activity.time}</p>
+                  <div className="font-semibold text-gray-800">{activity.action}</div>
+                  <div className="text-xs text-gray-500">{new Date(activity.time).toLocaleString()}</div>
+                  {activity.txHash && (
+                    <div className="text-xs text-gray-400 mt-1">
+                      Tx: <span className="ml-1 font-mono cursor-pointer" title={activity.txHash}>{truncateHash(activity.txHash)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
-              {activity.reward && activity.reward.startsWith('+') && (
-                <span className={`font-bold text-emerald-600`} title="Earned">
-                  {activity.reward}
-                </span>
-              )}
-            </motion.div>
+              <div className="font-bold text-emerald-600 text-lg">{activity.reward}</div>
+            </div>
           ))}
         </div>
         <div className="flex justify-center gap-4 mt-6">

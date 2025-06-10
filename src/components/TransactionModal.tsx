@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap, Info } from 'lucide-react';
 import { useAccount, useContractWrite, useWaitForTransactionReceipt, useContractRead } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
-import { updateAfterWater } from '../lib/firebaseUser';
+import { updateAfterWater, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -79,6 +79,14 @@ function TransactionModal({
     args: address ? [address] : undefined,
   });
 
+  // Add on-chain XP fetch
+  const { data: onChainXP } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'totalXP',
+    args: address ? [address] : undefined,
+  });
+
   React.useEffect(() => {
     if (type === 'water' && isWaterSuccess && address && plotId && waterTxHash && !hasUpdatedRef.current) {
       hasUpdatedRef.current = true;
@@ -93,6 +101,20 @@ function TransactionModal({
         setEnergy(energy - 5); // Only deduct energy after success
         setTransactionStatus('success');
         setTxHash(waterTxHash);
+        // Log and sync activity after water
+        if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
+          logAndSyncUserActivity(address, {
+            icon: getActivityIcon('water'),
+            action: `Watered Plot #${plotId}`,
+            time: new Date().toISOString(),
+            reward: '+0 RT',
+            color: 'blue',
+            txHash: waterTxHash,
+          }, {
+            riceTokens: Number(onChainRiceTokens),
+            totalXP: Number(onChainXP),
+          });
+        }
         setTimeout(() => {
           onClose();
           setTransactionStatus('idle');
@@ -116,6 +138,20 @@ function TransactionModal({
         if (onChainRiceTokens !== undefined) {
           setRiceTokens(Number(onChainRiceTokens));
         }
+        // Log and sync activity after harvest
+        if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
+          logAndSyncUserActivity(address, {
+            icon: getActivityIcon('harvest'),
+            action: `Harvested Plot #${plotId}`,
+            time: new Date().toISOString(),
+            reward: `+${currentPlot.expectedYield || 0} RT`,
+            color: 'green',
+            txHash: waterTxHash,
+          }, {
+            riceTokens: Number(onChainRiceTokens),
+            totalXP: Number(onChainXP),
+          });
+        }
         // Close modal after short delay
         setTimeout(() => {
           onClose();
@@ -123,7 +159,7 @@ function TransactionModal({
         }, 1500);
       })();
     }
-  }, [type, isWaterSuccess, address, plotId, waterTxHash, onClose, energy, setPlots, transactionStatus, currentPlot, onChainRiceTokens]);
+  }, [type, isWaterSuccess, address, plotId, waterTxHash, onClose, energy, setPlots, transactionStatus, currentPlot, onChainRiceTokens, onChainXP]);
 
   React.useEffect(() => {
     if (fetchedPlot) setOnChainPlot(fetchedPlot);
@@ -233,7 +269,7 @@ function TransactionModal({
 
   // Add seedMeta for growth time (hours) by cropType (copy from FarmGrid)
   const seedMeta: Record<string, { icon: string; growthTime: number }> = {
-    'Basic Rice Seed': { icon: '��', growthTime: 8 },
+    'Basic Rice Seed': { icon: '🌱', growthTime: 8 },
     'Premium Rice Seed': { icon: '🌿', growthTime: 6 },
     'Hybrid Rice Seed': { icon: '🌾', growthTime: 4 },
     'Basic Rice': { icon: '🌱', growthTime: 8 },

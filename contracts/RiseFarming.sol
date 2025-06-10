@@ -135,6 +135,11 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         acceptedPaymentTokens[address(0)] = true;
         dailyRewards = [1, 2, 3, 4, 5, 6, 7]; // Example: 1 RT for day 1, 2 RT for day 2, etc.
 
+        // Initialize quest rewards
+        questRewards[1] = 1; // 1 RT for planting 3 seeds
+        questRewards[2] = 2; // 2 RT for watering 5 plots
+        questRewards[3] = 3; // 3 RT for harvesting 2 plots
+
         // Update Basic Rice Seed (Single)
         items[BASIC_SEED_SINGLE_ID] = Item({
             id: BASIC_SEED_SINGLE_ID,
@@ -471,6 +476,12 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
             userItemBalances[msg.sender][bundle.itemIds[i]] += bundle.itemAmounts[i] * amount;
         }
         emit BundlePurchased(msg.sender, bundleId, bundle.itemIds, bundle.itemAmounts, totalPrice);
+        // Award XP for buying harvester bundle, else 1 XP
+        if (bundleId == GOLDEN_HARVESTER_BUNDLE_ID) {
+            totalXP[msg.sender] += 5;
+        } else {
+            totalXP[msg.sender] += 1;
+        }
     }
 
     function buyItem(uint256 itemId, uint256 amount, address paymentToken) external payable whenNotPaused nonReentrant {
@@ -502,6 +513,12 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         itemIds[0] = itemId;
         amounts[0] = amount;
         emit ItemPurchased(msg.sender, 0, itemIds, amounts, paymentToken, totalPrice);
+        // Award XP for buying harvester, else 1 XP
+        if (itemId == HARVESTER_ID || itemId == GOLDEN_HARVESTER_SINGLE_ID || itemId == GOLDEN_HARVESTER_BUNDLE_ID) {
+            totalXP[msg.sender] += 5;
+        } else {
+            totalXP[msg.sender] += 1;
+        }
     }
 
     // --- Planting & Harvesting ---
@@ -547,6 +564,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
             state: PlotState.NeedsWater
         });
         emit SeedPlanted(msg.sender, plotId, seedId);
+        totalXP[msg.sender] += 1; // Award 1 XP for planting
     }
 
     // --- Daily Rewards ---
@@ -563,6 +581,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         userStreaks[msg.sender] += 1;
         lastClaimedDay[msg.sender] = block.timestamp;
         emit DailyRewardClaimed(msg.sender, day + 1, reward);
+        totalXP[msg.sender] += 1; // Award 1 XP for claiming daily reward
     }
 
     // --- Tools/Upgrades Example ---
@@ -581,6 +600,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         userItemBalances[msg.sender][upgradeId] -= 1;
         farmLevel[msg.sender] += 1;
         emit FarmUpgraded(msg.sender, upgradeId);
+        totalXP[msg.sender] += 1; // Award 1 XP for upgrading farm
     }
 
     // --- Quest Functions ---
@@ -598,6 +618,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         claimedQuests[msg.sender][questId] = true;
         
         emit QuestRewardClaimed(msg.sender, questId, reward);
+        totalXP[msg.sender] += 1; // Award 1 XP for claiming quest reward
     }
 
     // --- Utility ---
@@ -643,6 +664,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         }
         // else: normal watering logic (e.g., increase water level, improve quality, etc.)
         emit ToolUsed(msg.sender, WATERING_CAN_ID, plotId);
+        totalXP[msg.sender] += 1; // Award 1 XP for watering
     }
 
     // --- New Functions for Tools ---
@@ -673,6 +695,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         plot.state = PlotState.Locked;
         emit Harvested(msg.sender, plotId, totalYield);
         totalHarvests[msg.sender] += 1;
+        totalXP[msg.sender] += 1; // Award 1 XP for harvesting
     }
 
     // 2. Golden Harvester Bundle: Harvest all ready plots, burn one per use
@@ -705,6 +728,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
             emit ToolBurned(msg.sender, GOLDEN_HARVESTER_BUNDLE_ID);
         }
         riceTokens[msg.sender] += totalYield;
+        totalXP[msg.sender] += 1; // Award 1 XP for multi-harvest
     }
 
     // 3. Fertilizer Spreader: Apply to plot, boost growth/yield, burn one per use
@@ -725,6 +749,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
             plot.readyAt = block.timestamp; // Already ready!
         }
         emit ToolUsed(msg.sender, FERTILIZER_SPREADER_ID, plotId);
+        totalXP[msg.sender] += 1; // Award 1 XP for applying fertilizer
     }
 
     // 4. Auto-Watering System: Water all growing plots if user owns the tool
@@ -747,6 +772,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
                 userItemBalances[msg.sender][AUTO_WATERING_SYSTEM_ID] -= 1;
                 emit ToolBurned(msg.sender, AUTO_WATERING_SYSTEM_ID);
             }
+            totalXP[msg.sender] += 1; // Award 1 XP for auto-watering
         }
     }
 
@@ -761,6 +787,12 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         item.supply -= amount;
         userItemBalances[msg.sender][itemId] += amount;
         emit ItemPurchasedWithRT(msg.sender, itemId, amount, priceRT);
+        // Award XP for buying harvester, else 1 XP
+        if (itemId == HARVESTER_ID || itemId == GOLDEN_HARVESTER_SINGLE_ID || itemId == GOLDEN_HARVESTER_BUNDLE_ID) {
+            totalXP[msg.sender] += 5;
+        } else {
+            totalXP[msg.sender] += 1;
+        }
     }
 
     // --- Batch Plot Updater for Cron ---
@@ -801,6 +833,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         plot.harvestedAt = 0;
         plot.needsFertilizer = false;
         plot.state = PlotState.Empty;
+        totalXP[msg.sender] += 1; // Award 1 XP for reviving
     }
 
     // --- Claim Initial Energy (only once) ---

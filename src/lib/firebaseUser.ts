@@ -369,4 +369,64 @@ export async function resetDailyQuestsIfNeeded(walletAddress: string) {
       // Optionally reset claimed state in local Firestore if you track it
     }, { merge: true });
   }
+}
+
+/**
+ * Sync all on-chain user fields to Firestore for leaderboard/analytics.
+ * Call this after any on-chain action (plant, water, harvest, buy, claim, etc).
+ * Pass in all the latest values you want to store.
+ */
+export async function syncUserOnChainToFirestore(walletAddress: string, data: Partial<UserData>) {
+  if (!walletAddress) return;
+  const userRef = doc(db, 'users', walletAddress);
+  await setDoc(userRef, data, { merge: true });
+}
+
+/**
+ * Log an activity and sync on-chain user fields to Firestore.
+ * Call this after any on-chain action (plant, water, harvest, buy, claim, etc).
+ * Pass in the activity object and the latest values you want to store.
+ */
+export async function logAndSyncUserActivity(walletAddress: string, activity: Activity, data: Partial<UserData>) {
+  if (!walletAddress) return;
+  // Log activity
+  const userRef = doc(db, 'users', walletAddress);
+  const userSnap = await getDoc(userRef);
+  let recentActivity = [];
+  if (userSnap.exists()) {
+    const userData = userSnap.data();
+    recentActivity = userData.recentActivity || [];
+    // Prevent duplicate activity for the same txHash (if provided)
+    if (!activity.txHash || !recentActivity.length || recentActivity[0].txHash !== activity.txHash) {
+      recentActivity = [activity, ...recentActivity].slice(0, 20);
+    }
+  } else {
+    recentActivity = [activity];
+  }
+  await setDoc(userRef, { recentActivity, ...data }, { merge: true });
+}
+
+/**
+ * Get a visually appealing icon for an activity type and item name.
+ */
+export function getActivityIcon(type: string, itemName?: string): string {
+  switch (type) {
+    case 'plant': return '🌱';
+    case 'water': return '💧';
+    case 'harvest': return '✂️';
+    case 'buy':
+      if (itemName?.toLowerCase().includes('seed')) return '🌾';
+      if (itemName?.toLowerCase().includes('watering can')) return '🛠️';
+      if (itemName?.toLowerCase().includes('bundle')) return '📦';
+      if (itemName?.toLowerCase().includes('energy')) return '⚡';
+      if (itemName?.toLowerCase().includes('fertilizer')) return '🧪';
+      if (itemName?.toLowerCase().includes('auto-watering')) return '🤖';
+      return '🛒';
+    case 'quest': return '🎯';
+    case 'daily': return '🎁';
+    case 'upgrade': return '🏡';
+    case 'achievement': return '🏆';
+    case 'error': return '⚠️';
+    default: return '📝';
+  }
 } 
