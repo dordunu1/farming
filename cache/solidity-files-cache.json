@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "E:\\farming\\contracts\\RiseFarming.sol": {
-      "lastModificationDate": 1749544784146,
-      "contentHash": "05721a8cb4b700867b390957e8be8276",
+      "lastModificationDate": 1749566008707,
+      "contentHash": "814b794a43986cf3efeb6309db3aca20",
       "sourceName": "contracts/RiseFarming.sol",
       "solcConfig": {
         "version": "0.8.24",

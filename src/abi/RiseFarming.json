@@ -910,6 +910,13 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "buyEnergyBooster",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -953,6 +960,13 @@
   {
     "inputs": [],
     "name": "claimDailyReward",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "claimInitialEnergy",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1079,6 +1093,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getEnergyBoosterSupply",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -1158,6 +1185,16 @@
             "internalType": "bool",
             "name": "needsFertilizer",
             "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "startedGrowing",
+            "type": "bool"
+          },
+          {
+            "internalType": "enum RiseFarming.PlotState",
+            "name": "state",
+            "type": "uint8"
           }
         ],
         "internalType": "struct RiseFarming.Plot[]",
@@ -1190,6 +1227,25 @@
       }
     ],
     "name": "hasAutoWatering",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "hasClaimedInitialEnergy",
     "outputs": [
       {
         "internalType": "bool",
@@ -1783,6 +1839,25 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "name": "userEnergy",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       },
       {
         "internalType": "uint256",
@@ -1855,6 +1930,16 @@
         "internalType": "bool",
         "name": "needsFertilizer",
         "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "startedGrowing",
+        "type": "bool"
+      },
+      {
+        "internalType": "enum RiseFarming.PlotState",
+        "name": "state",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { X, Plus, Coins, Clock, Zap, Star } from 'lucide-react';
+import { X, Plus, Coins, Clock, Zap, Star, Info } from 'lucide-react';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, useContractReads, usePublicClient } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { marketItems } from './Marketplace';
@@ -129,6 +129,8 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
 
   const publicClient = usePublicClient();
 
+  const showEnergyWarning = energy < 5; // Warning when energy is below 5
+
   React.useEffect(() => {
     async function syncOnChainPlot() {
       if (txSuccess && address && plotId && selectedSeed && txHash && !hasUpdatedRef.current) {
@@ -243,9 +245,23 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
 
   if (!isOpen) return null;
 
+  const notEnoughEnergy = selectedSeed && energy < selectedSeed.energyCost;
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[80vh] flex flex-col justify-between relative mt-10">
+        {/* Energy Balance Display - moved to top */}
+        <div className="flex flex-col items-center mb-4">
+          <div className={`flex items-center gap-3 px-5 py-2 rounded-xl shadow font-semibold text-lg ${notEnoughEnergy ? 'bg-red-50 border border-red-200 text-red-600' : 'bg-blue-50 border border-blue-200 text-blue-700'}`}> 
+            <Zap className={`w-6 h-6 ${notEnoughEnergy ? 'text-red-400' : 'text-yellow-500'}`} />
+            <span>Your Energy:</span>
+            <span className="font-bold text-2xl">{energy}</span>
+            <span className="text-base font-normal text-gray-400 ml-2">/ 100</span>
+          </div>
+          {notEnoughEnergy && (
+            <div className="mt-2 text-sm text-red-600 font-medium">Not enough energy to plant <span className="font-bold">{selectedSeed?.name}</span> (requires {selectedSeed?.energyCost})</div>
+          )}
+        </div>
         {/* Toast message */}
         {showToast && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-emerald-100 border border-emerald-300 text-emerald-900 px-6 py-3 rounded-xl shadow-lg z-50 font-semibold flex items-center gap-2 animate-fade-in">
@@ -314,7 +330,12 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
               <div className="flex flex-col gap-1 text-sm">
                 <div className="flex justify-between"><span>Seed Type:</span> <span className="font-bold">{selectedSeed.name}</span></div>
                 <div className="flex justify-between"><span>Cost:</span> <span className="font-bold">{getSeedPrice(selectedSeed.id)}</span></div>
-                <div className="flex justify-between"><span>Energy Cost:</span> <span className="font-bold">{selectedSeed.energyCost} Energy</span></div>
+                <div className="flex justify-between">
+                  <span>Energy Cost:</span>
+                  <span className={`font-bold ${energy < selectedSeed.energyCost ? 'text-red-500' : 'text-emerald-500'}`}>{selectedSeed.energyCost} Energy{energy < selectedSeed.energyCost && (<span className="ml-2 text-xs text-red-500">(Not enough energy)</span>)}</span>
+                </div>
+                {/* Add note about actual on-chain deduction */}
+                <div className="mt-1 text-xs text-blue-600 font-medium italic">Note: Only 1 energy will actually be deducted per planting, regardless of the seed's listed cost.</div>
                 <div className="flex justify-between"><span>Growth Time:</span> <span className="font-bold">{selectedSeed.growthTime}h</span></div>
                 <div className="flex justify-between"><span>Expected Yield:</span> <span className={`font-bold ${selectedSeed.bundles > 0 ? 'text-yellow-700' : 'text-emerald-700'}`}>{selectedSeed.bundles > 0 ? selectedSeed.bundleYield : selectedSeed.yield}</span></div>
                 <div className="flex justify-between"><span>Bonus:</span> <span className={`font-bold ${selectedSeed.bundles > 0 ? 'text-yellow-700' : 'text-emerald-700'}`}>{selectedSeed.bundles > 0 ? selectedSeed.bundleBonus : 'None'}</span></div>
@@ -337,8 +358,12 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
               Cancel
             </button>
             <button
-              className={`flex-1 py-3 rounded-xl font-medium transition-all ${ownedSeeds[selectedIdx]?.total > 0 ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
-              disabled={ownedSeeds[selectedIdx]?.total <= 0}
+              className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                ownedSeeds[selectedIdx]?.total > 0 && energy >= ownedSeeds[selectedIdx]?.energyCost
+                  ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
+              disabled={ownedSeeds[selectedIdx]?.total <= 0 || energy < ownedSeeds[selectedIdx]?.energyCost}
               onClick={() => setStep(2)}
             >
               Next
@@ -360,11 +385,15 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
               Cancel
             </button>
             <button
-              className={`flex-1 py-3 rounded-xl font-medium transition-all ${canPlant ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+              className={`flex-1 py-3 rounded-xl font-medium transition-all ${
+                canPlant
+                  ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700'
+                  : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              }`}
               disabled={!canPlant || isPending}
               onClick={handlePlantSeed}
             >
-              {isPending ? 'Planting...' : '+ Plant Seeds'}
+              {isPending ? 'Planting...' : energy < selectedSeed.energyCost ? 'Not Enough Energy' : '+ Plant Seeds'}
             </button>
           </div>
         )}

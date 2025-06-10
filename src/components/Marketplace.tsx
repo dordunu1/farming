@@ -160,20 +160,6 @@ const marketItems: MarketItem[] = [
     supply: 0
   },
   {
-    id: 8, // Energy Booster
-    name: 'Energy Booster',
-    description: 'Permanently increases maximum energy by 25',
-    usdPrice: 50,
-    currency: 'RT',
-    category: 'upgrades',
-    rarity: 'epic',
-    icon: <Zap className="w-6 h-6 text-yellow-500" />,
-    level: 2,
-    benefits: ['+25 max energy', 'Permanent upgrade', 'Stackable'],
-    details: 'Energy Booster: Permanently increases your maximum energy by 25 points. Stackable up to 5 times. More energy means more actions per session.',
-    supply: 0
-  },
-  {
     id: 12, // Fertilizer Spreader
     name: 'Fertilizer Spreader',
     description: 'Required to revive a harvested plot after cooldown. Not used for boosting growth or yield.',
@@ -215,11 +201,36 @@ const marketItems: MarketItem[] = [
     details: 'Use this tool to water your crops and keep them healthy. Each use increases water level by 40%.',
     supply: 50000
   },
+  {
+    id: 19, // Energy Booster
+    name: 'Energy Booster',
+    description: 'Replenish your energy to continue farming',
+    usdPrice: 25,
+    currency: 'RT',
+    category: 'upgrades',
+    rarity: 'epic',
+    icon: <Zap className="w-6 h-6 text-yellow-500" />,
+    level: 1,
+    benefits: ['+5 energy', 'Continue farming'],
+    details: 'Energy Booster: Replenish your energy by 5 points. Required for farming actions like planting, watering, and harvesting.',
+    supply: 0
+  },
 ];
 
 function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBreakdown, quantity, setQuantity }: { open: boolean, item: MarketItem | null, onClose: () => void, onConfirm: () => void, pending: boolean, success: boolean, bundleBreakdown?: string[], quantity: number, setQuantity: (q: number) => void }) {
   const { address } = useAccount();
+  const { data: userEnergy } = useContractRead({
+    address: RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userEnergy',
+    args: address ? [address] : undefined,
+  });
+
   if (!open || !item) return null;
+
+  const isEnergyBooster = item.id === 19;
+  const showEnergyWarning = userEnergy !== undefined && Number(userEnergy) <= 2;
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md relative">
@@ -228,11 +239,19 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
           <Box className="w-12 h-12 text-emerald-500 mb-2" />
           <h2 className="text-xl font-bold mb-2">{success ? 'Congratulations!' : 'Confirm Purchase'}</h2>
           {success ? (
-            <div className="text-center text-emerald-700 font-semibold text-lg mb-4">Your purchase was successful! 🎉<br />Check your inventory for your new item.</div>
+            <div className="text-center text-emerald-700 font-semibold text-lg mb-4">
+              {isEnergyBooster ? 'Energy replenished! 🎉' : 'Your purchase was successful! 🎉'}
+              <br />{isEnergyBooster ? 'You can now continue farming.' : 'Check your inventory for your new item.'}
+            </div>
           ) : (
             <div className="mb-4 text-center">
               <div className="text-lg font-semibold">{item.name}</div>
               <div className="text-gray-500 text-sm mb-2">{item.description}</div>
+              {isEnergyBooster && showEnergyWarning && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 text-sm text-red-600">
+                  ⚠️ Low energy! This booster will help you continue farming.
+                </div>
+              )}
               {item.category === 'bundle' && bundleBreakdown && (
                 <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2 mt-2">
                   <div className="font-medium text-emerald-700 mb-1">Bundle Includes:</div>
@@ -257,9 +276,20 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
             </div>
           )}
           {!success && (
-            <button onClick={onConfirm} disabled={pending || !address} className={`w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl mt-4 transition-opacity ${(pending || !address) ? 'opacity-60 cursor-not-allowed' : ''}`}>{pending ? 'Buying...' : 'Buy Now'}</button>
+            <button 
+              onClick={onConfirm} 
+              disabled={pending || !address} 
+              className={`w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl mt-4 transition-opacity ${(pending || !address) ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              {pending ? 'Buying...' : isEnergyBooster ? 'Replenish Energy' : 'Buy Now'}
+            </button>
           )}
         </div>
+        {success && (
+          <div className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-xl shadow-lg z-50 text-lg font-semibold">
+            Purchase successful!
+          </div>
+        )}
       </div>
     </div>
   );
@@ -332,6 +362,16 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     args: address ? [address, 6] : undefined,
   });
 
+  const { data: userEnergy } = useContractRead({
+    address: RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userEnergy',
+    args: address ? [address] : undefined,
+  });
+
+  // Add energy warning tooltip
+  const showEnergyWarning = userEnergy !== undefined && Number(userEnergy) <= 2;
+
   useEffect(() => {
     fetch('https://api.binance.com/api/v3/ticker/price?symbol=ETHUSDT')
       .then(res => res.json())
@@ -340,7 +380,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       });
   }, []);
 
-  const filteredItems = marketItems.filter(item => {
+  const filteredItems = marketItems.filter((item: MarketItem) => {
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesCategory && matchesSearch;
@@ -350,7 +390,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const { writeContract: writeSingle } = useContractWrite({
     mutation: {
       onSuccess(data: any) {
-        setTxHash(data);
+        setTxHash(data.hash || data);
         setPending(true);
       },
       onError(error) {
@@ -364,7 +404,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const { writeContract: writeBundle } = useContractWrite({
     mutation: {
       onSuccess(data: any) {
-        setTxHash(data);
+        setTxHash(data.hash || data);
         setPending(true);
       },
       onError(error) {
@@ -378,7 +418,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const { writeContract: writeRT } = useContractWrite({
     mutation: {
       onSuccess(data: any) {
-        setTxHash(data.hash as `0x${string}`);
+        setTxHash(data.hash || data);
         setPending(true);
       },
       onError(error) {
@@ -397,7 +437,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     if (txSuccess) {
       setPending(false);
       setSuccess(true);
-      // Success message is always shown in the modal for both single and bundle purchases
+      // Success message is always shown in the modal for both single and bundle purchases, and for Energy Booster
       const timeout = setTimeout(() => {
         setSuccess(false);
         setBuyModalOpen(false);
@@ -425,8 +465,8 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     }
     const itemIds = bundle[3] as number[];
     const itemAmounts = bundle[4] as number[];
-    return itemIds.map((id, idx) => {
-      const meta = marketItems.find(m => m.id === id);
+    return itemIds.map((id: number, idx: number) => {
+      const meta = marketItems.find((m: MarketItem) => m.id === id);
       return `${itemAmounts[idx]}x ${meta ? meta.name : 'Unknown Item'}`;
     });
   }
@@ -477,14 +517,25 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         });
       }
     } else if (selectedItem.currency === 'RT') {
-      // RT-priced item: call buyItemWithGameRT
-      writeRT({
-        address: RISE_FARMING_ADDRESS,
-        abi: RiseFarmingABI as any,
-        functionName: 'buyItemWithGameRT',
-        args: [BigInt(selectedItem.id), BigInt(quantity)],
-        account: address,
-      });
+      if (selectedItem.id === 19) {
+        // Energy Booster: call the dedicated function
+        writeRT({
+          address: RISE_FARMING_ADDRESS,
+          abi: RiseFarmingABI as any,
+          functionName: 'buyEnergyBooster',
+          args: [],
+          account: address,
+        });
+      } else {
+        // Other RT-priced items
+        writeRT({
+          address: RISE_FARMING_ADDRESS,
+          abi: RiseFarmingABI as any,
+          functionName: 'buyItemWithGameRT',
+          args: [BigInt(selectedItem.id), BigInt(quantity)],
+          account: address,
+        });
+      }
     }
   };
 
@@ -493,7 +544,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       // Determine icon
       let icon = '🛒';
       if (selectedItem.category === 'seeds') icon = '🌾';
-      else if (selectedItem.category === 'tools') icon = '🛠️';
+      else if (selectedItem.category === 'tools') icon = '��️';
       else if (selectedItem.category === 'upgrades') icon = '⚡';
       else if (selectedItem.category === 'bundle') icon = '📦';
       // Determine amount and price
@@ -549,7 +600,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   };
 
   // Create a map from item ID to supply
-  const supplyMap = new Map(marketItems.map((item, idx) => [item.id, supplies?.[idx] ?? '...']));
+  const supplyMap = new Map(marketItems.map((item: MarketItem, idx: number) => [item.id, supplies?.[idx] ?? '...']));
 
   return (
     <div className="space-y-6 pb-20">
@@ -560,9 +611,28 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             <h1 className="text-2xl font-bold text-gray-800">Marketplace</h1>
             <p className="text-gray-600">Upgrade your farm with premium seeds and tools</p>
           </div>
-          <div className="flex items-center space-x-2 text-sm">
-            <TrendingUp className="w-4 h-4 text-green-500" />
-            <span className="text-gray-600">{marketItems.length} items available</span>
+          <div className="flex items-center space-x-4">
+            {/* Energy Display */}
+            {address && (
+              <div className="flex items-center space-x-2">
+                <Zap className={`w-5 h-5 ${showEnergyWarning ? 'text-red-500' : 'text-yellow-500'}`} />
+                <span className="text-sm font-medium">
+                  Energy: {userEnergy?.toString() || '0'}
+                </span>
+                {showEnergyWarning && (
+                  <div className="relative group">
+                    <Info className="w-4 h-4 text-red-500 cursor-help" />
+                    <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-red-200 rounded-lg p-2 text-xs text-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                      Low energy! Buy an Energy Booster to continue farming.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex items-center space-x-2 text-sm">
+              <TrendingUp className="w-4 h-4 text-green-500" />
+              <span className="text-gray-600">{marketItems.length} items available</span>
+            </div>
           </div>
         </div>
       </div>
@@ -601,7 +671,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         {filteredItems.length === 0 ? (
           <div className="col-span-3 text-center text-gray-400 py-8">No items available.</div>
         ) : (
-          filteredItems.map((item, idx) => {
+          filteredItems.map((item: MarketItem, idx: number) => {
             // Find the index in marketItems to get the correct supply
             const itemIdx = marketItems.findIndex(m => m.id === item.id);
             // For bundles, get priceETH and supply from contract

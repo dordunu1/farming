@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap } from 'lucide-react';
+import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap, Info } from 'lucide-react';
 import { useAccount, useContractWrite, useWaitForTransactionReceipt, useContractRead } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { updateAfterWater } from '../lib/firebaseUser';
@@ -20,6 +20,15 @@ interface TransactionModalProps {
   setPlots: (plots: any[]) => void;
   waterCans: number;
 }
+
+// Add PlotState enum mapping for clarity
+const PlotState = {
+  Empty: 0,
+  NeedsWater: 1,
+  Growing: 2,
+  Ready: 3,
+  Locked: 4,
+} as const;
 
 function TransactionModal({ 
   isOpen, 
@@ -142,11 +151,13 @@ function TransactionModal({
     }
   }, [type, isWaterSuccess, transactionStatus, onClose]);
 
+  const showEnergyWarning = energy < 2; // Warning when energy is below 2
+  const energyCost = type === 'water' ? 1 : 1; // Both actions cost 1 energy now
+
   if (!isOpen) return null;
 
   const handleTransaction = async () => {
     if (!currentPlot) return;
-    const energyCost = type === 'water' ? 5 : 15;
     if (energy < energyCost) {
       alert('Not enough energy!');
       return;
@@ -204,7 +215,7 @@ function TransactionModal({
         title: 'Water Crops',
         description: 'Water your rice crops to help them grow faster',
         icon: <Droplets className="w-8 h-8 text-blue-500" />,
-        cost: '5 Energy',
+        cost: '1 Energy',
         benefit: '+40% water level, improved quality'
       };
     } else {
@@ -212,7 +223,7 @@ function TransactionModal({
         title: 'Harvest Rice',
         description: 'Harvest your fully grown rice and earn tokens',
         icon: <Scissors className="w-8 h-8 text-yellow-500" />,
-        cost: '15 Energy',
+        cost: '1 Energy',
         benefit: `Earn ${yieldRT} Rice Tokens`
       };
     }
@@ -242,7 +253,7 @@ function TransactionModal({
     cooldownPassed;
 
   // Guard: if the plot is truly empty, do not render this modal (let PlantModal handle it)
-  if (currentPlot && currentPlot.status === 'empty' && !currentPlot.cropType && currentPlot.waterLevel === 0 && !currentPlot.needsFertilizer) {
+  if (currentPlot && (currentPlot.state === PlotState.Empty || currentPlot.state === undefined)) {
     return null;
   }
 
@@ -254,6 +265,22 @@ function TransactionModal({
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
       >
+        {/* Energy Balance Display */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          <Zap className={`w-4 h-4 ${showEnergyWarning ? 'text-red-500' : 'text-yellow-500'}`} />
+          <span className="text-sm font-medium">
+            Energy: {energy}
+          </span>
+          {showEnergyWarning && (
+            <div className="relative group">
+              <Info className="w-4 h-4 text-red-500 cursor-help" />
+              <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-red-200 rounded-lg p-2 text-xs text-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                Low energy! Buy an Energy Booster from the marketplace to continue farming.
+              </div>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-800">{actionData.title}</h2>
           <button
@@ -381,8 +408,8 @@ function TransactionModal({
                   onClick={handleTransaction}
                   disabled={
                     type === 'harvest'
-                      ? (!canHarvestOnChain || energy < 15 || transactionStatus === 'pending' || (growing === false && cooldownPassed) || !harvesterUses || Number(harvesterUses) <= 0)
-                      : (energy < 5 || (type === 'water' && String(transactionStatus) === 'pending') || (type === 'water' && waterCans <= 0))
+                      ? (!canHarvestOnChain || energy < energyCost || transactionStatus === 'pending' || (growing === false && cooldownPassed) || !harvesterUses || Number(harvesterUses) <= 0)
+                      : (energy < energyCost || (type === 'water' && String(transactionStatus) === 'pending') || (type === 'water' && waterCans <= 0))
                   }
                   className={`flex-1 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     type === 'water'
@@ -396,7 +423,9 @@ function TransactionModal({
                       ? 'Harvesting…'
                       : type === 'harvest' && growing === false && cooldownPassed
                         ? 'Plot already harvested'
-                        : `Confirm ${actionData.title}`}
+                        : energy < energyCost
+                          ? 'Not Enough Energy'
+                          : `Confirm ${actionData.title}`}
                 </button>
               )}
             </div>
@@ -417,6 +446,12 @@ function TransactionModal({
 
             {type === 'harvest' && (!harvesterUses || Number(harvesterUses) <= 0) && (
               <div className="mt-2 text-xs text-red-600 text-center">You need a Golden Harvester with uses left to harvest.</div>
+            )}
+
+            {energy < energyCost && (
+              <div className="mt-2 text-xs text-red-600 text-center">
+                Not enough energy! This action requires {energyCost} energy. Buy an Energy Booster from the marketplace.
+              </div>
             )}
           </div>
         )}

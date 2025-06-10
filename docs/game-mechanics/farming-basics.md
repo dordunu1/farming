@@ -10,6 +10,21 @@ Every crop follows this cycle:
 
 Each phase requires different actions and attention to optimize your results.
 
+## Energy System (On-Chain)
+
+### How Energy Works
+- Energy is now tracked on-chain for each user.
+- Each user can claim 5 energy once (on first login/interaction) using the `claimInitialEnergy()` contract function.
+- All farming actions (planting, watering, harvesting) cost 1 energy each.
+- When a user's energy reaches 0, they must purchase an Energy Booster (cost: 25 RT, gives 5 energy) using the `buyEnergyBooster()` contract function (available in the UI marketplace).
+- Energy does **not** regenerate automatically over time in the UI.
+- Energy is required for all farming actions. If you have no energy, you cannot plant, water, or harvest until you buy a booster.
+
+### Energy Booster
+- **Cost:** 25 RT
+- **Effect:** Instantly adds 5 energy to your on-chain balance
+- **How to Use:** Buy from the marketplace in the UI, which calls the contract's `buyEnergyBooster()` function
+
 ## Planting Phase
 
 ### Seed Selection
@@ -24,13 +39,16 @@ Choose the right seeds for your strategy:
 ### Planting Strategy
 - **Diversify**: Mix different seed types
 - **Timing**: Stagger plantings for continuous harvests
-- **Energy**: Ensure sufficient energy for full cycle
+- **Energy**: Ensure sufficient energy for full cycle (claim initial energy and buy boosters as needed)
 - **Budget**: Balance investment with expected returns
 
 ## Growing Phase
 
 ### Water Management
 Water is crucial for crop development:
+
+- **Watering now costs 1 energy per action.**
+- **Crops do not start growing until they are watered for the first time.**
 
 #### Water Level Impact
 - **0-20%**: Withering (50% yield penalty)
@@ -189,9 +207,9 @@ Limited-time farming bonuses:
 ### Energy Shortages
 **Problem**: Running out of energy frequently
 **Solution**:
+- Claim your initial 5 energy on first login
+- Buy energy boosters from the marketplace (25 RT for 5 energy)
 - Plan actions in advance
-- Use natural regeneration
-- Purchase energy boosters
 - Optimize action timing
 
 ## Growth Speed & Yield Bonuses (On-Chain Rules)

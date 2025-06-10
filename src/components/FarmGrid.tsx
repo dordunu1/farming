@@ -5,7 +5,7 @@ import PlantModal from './PlantModal';
 import TransactionModal from './TransactionModal';
 import { setDoc, doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { updatePlotProgress } from '../lib/firebaseUser';
+import { updatePlotProgress, onUserDataSnapshot, getUserData } from '../lib/firebaseUser';
 import CircularProgressBar from './CircularProgressBar';
 import { marketItems } from './Marketplace';
 import { useContractWrite, useContractRead, useWaitForTransactionReceipt, useContractReads } from 'wagmi';
@@ -15,6 +15,18 @@ import type { Abi } from 'viem';
 
 // Define FERTILIZER_SPREADER_ID constant (should match Marketplace/Inventory)
 const FERTILIZER_SPREADER_ID = 12; // Fertilizer Spreader ID
+
+// Add 'needsWater' to PlotStatus type
+type PlotStatus = 'empty' | 'growing' | 'ready' | 'watering' | 'withering' | 'needsWater';
+
+// Add PlotState enum mapping for clarity
+const PlotState = {
+  Empty: 0,
+  NeedsWater: 1,
+  Growing: 2,
+  Ready: 3,
+  Locked: 4,
+} as const;
 
 interface FarmGridProps {
   isWalletConnected: boolean;
@@ -29,7 +41,7 @@ interface FarmGridProps {
 
 interface Plot {
   id: number;
-  status: 'empty' | 'growing' | 'ready' | 'watering' | 'withering';
+  status: PlotStatus;
   cropType: string;
   progress: number;
   timeRemaining?: number; // in minutes
@@ -44,6 +56,10 @@ interface Plot {
   rarity: 'common' | 'rare' | 'legendary';
   harvestedAt?: number;
   needsFertilizer?: boolean;
+  startedGrowing?: boolean;
+  seedId?: number;
+  growing?: boolean;
+  state: number;
 }
 
 function LockedOverlay({ harvestedAt }: { harvestedAt: number }) {
@@ -84,6 +100,8 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const [showReviveModal, setShowReviveModal] = useState(false);
   const [transactionType, setTransactionType] = useState<'water' | 'harvest'>('water');
   const { address } = useAccount();
+  const [firestorePlots, setFirestorePlots] = useState<Plot[]>([]);
+  const [firestoreEnergy, setFirestoreEnergy] = useState<number | null>(null);
 
   // Contract write for revivePlot
   const { writeContract: writeRevivePlot, data: reviveTxHash, isPending: isRevivePending } = useContractWrite();
@@ -111,32 +129,62 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
       : []
   });
 
-  // Update plots state with on-chain data
+  // Subscribe to Firestore user data for real-time updates
+  useEffect(() => {
+    if (!address) return;
+    const unsub = onUserDataSnapshot(address, (user) => {
+      if (user && Array.isArray(user.plots)) {
+        // Patch Firestore plots to ensure all required fields exist
+        const patchedPlots = user.plots.map((p: any, idx: number) => ({
+          ...p,
+          rarity: p.rarity || 'common',
+          state: typeof p.state === 'number' ? p.state : 0,
+        }));
+        setFirestorePlots(patchedPlots);
+      }
+      if (user && typeof user.energy === 'number') {
+        setFirestoreEnergy(user.energy);
+      }
+    });
+    return () => unsub && unsub();
+  }, [address]);
+
+  // Merge on-chain and Firestore plot data
   useEffect(() => {
     if (onChainPlots && Array.isArray(onChainPlots)) {
       const mappedPlots = onChainPlots.map((result, idx) => {
         const p = (result as any)?.result;
         if (!p) return plots[idx] || {};
-        // ABI: [seedId, plantedAt, readyAt, growthBonusBP, yieldBonusBP, growing, harvestedAt, needsFertilizer]
+        // ABI: [seedId, plantedAt, readyAt, growthBonusBP, yieldBonusBP, growing, harvestedAt, needsFertilizer, startedGrowing, state]
         const now = Date.now() / 1000;
-        let status: Plot['status'] = 'empty';
-        if (p[7]) {
-          status = 'empty'; // locked, UI will show lock
-        } else if (p[0] === 0) {
-          status = 'empty';
-        } else if (p[0] !== 0 && p[5]) {
-          status = 'growing';
-        } else if (p[0] !== 0 && !p[5] && p[2] > 0 && Number(p[2]) <= now) {
-          status = 'ready';
-        } else if (p[0] !== 0 && !p[5] && p[2] > 0 && Number(p[2]) > now) {
-          status = 'growing'; // fallback for just planted
+        let state = p[9]; // state from contract
+        if (p[5] === true && p[2] > 0 && now >= Number(p[2]) + 60) {
+          state = PlotState.Ready;
         }
-        // Use a mapping for seedId to name, always from on-chain value
+        let status: Plot['status'] = 'empty';
+        switch (state) {
+          case PlotState.Empty:
+            status = 'empty';
+            break;
+          case PlotState.NeedsWater:
+            status = 'needsWater';
+            break;
+          case PlotState.Growing:
+            status = 'growing';
+            break;
+          case PlotState.Ready:
+            status = 'ready';
+            break;
+          case PlotState.Locked:
+            status = 'withering';
+            break;
+          default:
+            status = 'empty';
+        }
         const seedNames: Record<number, string> = {
           9: 'Basic Rice Seed',
           10: 'Premium Rice Seed',
           11: 'Hybrid Rice Seed',
-          // Add more as needed
         };
         let cropType = '';
         if (p[0] && p[0] !== 0) {
@@ -149,6 +197,19 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
         if (p[0] !== 0 && p[4] > 0) {
           expectedYield = Math.round(expectedYield * (1 + Number(p[4]) / 1000));
         }
+        // Merge Firestore waterLevel and quality
+        let waterLevel = 0;
+        let quality: Plot['quality'] = 'poor';
+        let lastWatered = undefined;
+        let progress = 0;
+        let timeRemaining = undefined;
+        if (firestorePlots[idx]) {
+          waterLevel = firestorePlots[idx].waterLevel;
+          quality = firestorePlots[idx].quality;
+          lastWatered = firestorePlots[idx].lastWatered;
+          progress = firestorePlots[idx].progress;
+          timeRemaining = firestorePlots[idx].timeRemaining;
+        }
         return {
           ...plots[idx],
           id: idx + 1,
@@ -160,70 +221,22 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
           growing: p[5],
           harvestedAt: Number(p[6]),
           needsFertilizer: p[7],
+          startedGrowing: p[8],
+          state,
           status,
           cropType,
           expectedYield,
+          waterLevel,
+          quality,
+          lastWatered,
+          progress,
+          timeRemaining,
         };
       });
       setPlots(mappedPlots);
     }
     // eslint-disable-next-line
-  }, [onChainPlots]);
-
-  // Refetch on-chain plots after successful planting (PlantModal closes with success)
-  useEffect(() => {
-    // Listen for a custom event dispatched by PlantModal after planting
-    function handlePlanted() {
-      if (typeof refetchOnChainPlots === 'function') refetchOnChainPlots();
-    }
-    window.addEventListener('planted', handlePlanted);
-    return () => window.removeEventListener('planted', handlePlanted);
-  }, [refetchOnChainPlots]);
-
-  // Update plots every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPlots(prevPlots => {
-        const updatedPlots = prevPlots.map(plot => {
-          if (plot.status === 'growing' || plot.status === 'watering' || plot.status === 'withering' || plot.status === 'ready') {
-            const newTimeRemaining = Math.max(0, (plot.timeRemaining || 0) - 1);
-            const newProgress = plot.timeRemaining ? Math.min(100, 100 - (newTimeRemaining / (plot.timeRemaining + 1)) * 100) : plot.progress;
-            const timeSinceWatered = plot.lastWatered ? (Date.now() - plot.lastWatered) / (1000 * 60 * 60) : 24; // hours
-            const newWaterLevel = Math.max(0, plot.waterLevel - (timeSinceWatered * 2)); // 2% per hour
-            let newStatus = plot.status;
-            if (newTimeRemaining === 0 && newProgress >= 100) {
-              newStatus = 'ready';
-            } else if (newWaterLevel < 20) {
-              newStatus = 'withering';
-            } else if (newWaterLevel > 80) {
-              newStatus = 'watering';
-            } else {
-              newStatus = 'growing';
-            }
-            // Always update Firestore with new progress and waterLevel
-            const user = localStorage.getItem('walletAddress');
-            if (user) {
-              import('../lib/firebaseUser').then(({ updatePlotProgress }) => {
-                updatePlotProgress(user, plot.id, newProgress, newWaterLevel, newWaterLevel !== plot.waterLevel ? Date.now() : plot.lastWatered);
-              });
-            }
-            return {
-              ...plot,
-              timeRemaining: newTimeRemaining,
-              progress: newProgress,
-              waterLevel: newWaterLevel,
-              status: newStatus,
-              // Do not recalculate quality here; always use Firestore value
-            };
-          }
-          return plot;
-        });
-        return updatedPlots;
-      });
-    }, 60000); // Update every minute
-
-    return () => clearInterval(timer);
-  }, []);
+  }, [onChainPlots, firestorePlots]);
 
   // Helper to check if a plot is ready to revive
   const isReadyToRevive = (plot: Plot) => {
@@ -235,22 +248,27 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   // Handler for clicking a plot
   const handlePlotClick = (plot: Plot) => {
     if (!isWalletConnected) return;
-    if (plot.needsFertilizer && isReadyToRevive(plot)) {
-      setSelectedPlot(plot.id);
-      setShowReviveModal(true);
-      return;
-    }
-    if (plot.status === 'empty') {
-      setSelectedPlot(plot.id);
-      setShowPlantModal(true);
-    } else if (plot.status === 'ready') {
-      setSelectedPlot(plot.id);
-      setTransactionType('harvest');
-      setShowTransactionModal(true);
-    } else if (plot.status === 'growing' || plot.status === 'watering' || plot.status === 'withering') {
-      setSelectedPlot(plot.id);
-      setTransactionType('water');
-      setShowTransactionModal(true);
+    switch (plot.state) {
+      case PlotState.Locked:
+        setSelectedPlot(plot.id);
+        setShowReviveModal(true);
+        break;
+      case PlotState.Ready:
+        setSelectedPlot(plot.id);
+        setTransactionType('harvest');
+        setShowTransactionModal(true);
+        break;
+      case PlotState.Empty:
+        setSelectedPlot(plot.id);
+        setShowPlantModal(true);
+        break;
+      case PlotState.NeedsWater:
+        setSelectedPlot(plot.id);
+        setTransactionType('water');
+        setShowTransactionModal(true);
+        break;
+      default:
+        break;
     }
   };
 
@@ -366,51 +384,6 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
     }
   }, [isReviveSuccess, refetchOnChainPlots]);
 
-  // Update plots every minute
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setPlots(prevPlots => {
-        const updatedPlots = prevPlots.map(plot => {
-          if (plot.status === 'growing' || plot.status === 'watering' || plot.status === 'withering' || plot.status === 'ready') {
-            const newTimeRemaining = Math.max(0, (plot.timeRemaining || 0) - 1);
-            const newProgress = plot.timeRemaining ? Math.min(100, 100 - (newTimeRemaining / (plot.timeRemaining + 1)) * 100) : plot.progress;
-            const timeSinceWatered = plot.lastWatered ? (Date.now() - plot.lastWatered) / (1000 * 60 * 60) : 24; // hours
-            const newWaterLevel = Math.max(0, plot.waterLevel - (timeSinceWatered * 2)); // 2% per hour
-            let newStatus = plot.status;
-            if (newTimeRemaining === 0 && newProgress >= 100) {
-              newStatus = 'ready';
-            } else if (newWaterLevel < 20) {
-              newStatus = 'withering';
-            } else if (newWaterLevel > 80) {
-              newStatus = 'watering';
-            } else {
-              newStatus = 'growing';
-            }
-            // Always update Firestore with new progress and waterLevel
-            const user = localStorage.getItem('walletAddress');
-            if (user) {
-              import('../lib/firebaseUser').then(({ updatePlotProgress }) => {
-                updatePlotProgress(user, plot.id, newProgress, newWaterLevel, newWaterLevel !== plot.waterLevel ? Date.now() : plot.lastWatered);
-              });
-            }
-            return {
-              ...plot,
-              timeRemaining: newTimeRemaining,
-              progress: newProgress,
-              waterLevel: newWaterLevel,
-              status: newStatus,
-              // Do not recalculate quality here; always use Firestore value
-            };
-          }
-          return plot;
-        });
-        return updatedPlots;
-      });
-    }, 60000); // Update every minute
-
-    return () => clearInterval(timer);
-  }, []);
-
   // Close revive modal after tx success
   useEffect(() => {
     if (isReviveSuccess && showReviveModal) {
@@ -510,7 +483,30 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
             <motion.div
               key={plot.id}
               className={getPlotStyle({ ...plot, status: renderStatus, quality: plot.quality }) + ' relative biome-plot'}
-              onClick={() => handlePlotClick({ ...plot, status: renderStatus })}
+              onClick={() => {
+                if (!isWalletConnected) return;
+                if (plot.needsFertilizer && isReadyToRevive(plot)) {
+                  setSelectedPlot(plot.id);
+                  setShowReviveModal(true);
+                  return;
+                }
+                if (plot.status === 'ready') {
+                  setSelectedPlot(plot.id);
+                  setTransactionType('harvest');
+                  setShowTransactionModal(true);
+                } else if (plot.status === 'empty') {
+                  setSelectedPlot(plot.id);
+                  setShowPlantModal(true);
+                } else if (plot.status === 'needsWater') {
+                  setSelectedPlot(plot.id);
+                  setTransactionType('water');
+                  setShowTransactionModal(true);
+                } else if (plot.status === 'growing' || plot.status === 'watering' || plot.status === 'withering') {
+                  setSelectedPlot(plot.id);
+                  setTransactionType('water');
+                  setShowTransactionModal(true);
+                }
+              }}
               whileHover={{ y: -5 }}
               whileTap={{ scale: 0.95 }}
               layout
@@ -552,7 +548,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
                 {plot.status !== 'empty' && (
                   <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                     <CircularProgressBar value={Math.round(growthProgress * 100)} size={44} strokeWidth={6} color="#34d399" bgColor="#e5e7eb" label={Math.round(growthProgress * 100) + '%'} />
-                    <CircularProgressBar value={Math.round(waterBar)} size={32} strokeWidth={5} color="#60a5fa" bgColor="#e5e7eb" label={''} />
+                    <CircularProgressBar value={Math.round(plot.waterLevel || 0)} size={32} strokeWidth={5} color="#60a5fa" bgColor="#e5e7eb" label={''} />
                   </div>
                 )}
                 {/* Timer as small horizontal text in top right */}
@@ -619,6 +615,13 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
                     </motion.div>
                   )}
                 </AnimatePresence>
+                {/* Show water prompt if seed is planted but not growing */}
+                {(plot.seedId ?? 0) !== 0 && (plot.growing ?? false) === false && plot.cropType && plot.cropType !== '' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                    <Droplets className="w-10 h-10 text-blue-400 animate-bounce mb-2" />
+                    <span className="text-blue-700 font-semibold text-sm bg-white/80 rounded-xl px-3 py-1 shadow">Water me!</span>
+                  </div>
+                )}
               </div>
             </motion.div>
           );

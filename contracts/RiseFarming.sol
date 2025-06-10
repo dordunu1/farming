@@ -33,6 +33,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         uint256 maxSupply;
         uint256 supply;
     }
+    enum PlotState { Empty, NeedsWater, Growing, Ready, Locked }
     struct Plot {
         uint256 seedId;
         uint256 plantedAt;
@@ -42,6 +43,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         bool growing;
         uint256 harvestedAt;
         bool needsFertilizer;
+        bool startedGrowing;
+        PlotState state;
     }
 
     // --- Storage ---
@@ -74,7 +77,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
 
     // Add item IDs for harvester and energy booster
     uint256 public constant HARVESTER_ID = 7;
-    uint256 public constant ENERGY_BOOSTER_ID = 8;
+    uint256 public constant ENERGY_BOOSTER_ID = 19;
 
     // Add Basic Rice Seed (Single)
     uint256 public constant BASIC_SEED_SINGLE_ID = 9;
@@ -122,6 +125,10 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
 
     // Add a pause flag for daily rewards
     bool public dailyRewardPaused = false;
+
+    // --- Energy System ---
+    mapping(address => uint256) public userEnergy;
+    mapping(address => bool) public hasClaimedInitialEnergy;
 
     // --- Constructor ---
     constructor() Ownable(msg.sender) {
@@ -362,8 +369,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         bundles[15].itemAmounts[0] = 2;
 
         // Energy Booster
-        items[8] = Item({
-            id: 8,
+        items[ENERGY_BOOSTER_ID] = Item({
+            id: ENERGY_BOOSTER_ID,
             name: "Energy Booster",
             itemType: 2,
             priceETH: 0, // Set actual price as needed
@@ -373,8 +380,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 8000,
-            supply: 8000
+            maxSupply: 20000,
+            supply: 20000
         });
     }
 
@@ -499,6 +506,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
 
     // --- Planting & Harvesting ---
     function plantSeed(uint256 plotId, uint256 seedId) external whenNotPaused nonReentrant {
+        require(userEnergy[msg.sender] >= 1, "Not enough energy");
+        userEnergy[msg.sender] -= 1;
         Plot storage plot = userPlots[msg.sender][plotId];
         require(!plot.needsFertilizer, "Apply fertilizer first");
         require(userItemBalances[msg.sender][seedId] > 0, "No seeds");
@@ -524,16 +533,18 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         } else {
             revert("No seeds available");
         }
-        uint256 adjustedGrowthTime = seed.baseGrowthTime * (1000 - growthBonusBP) / 1000;
+        // Do not set plantedAt/readyAt/growing yet
         userPlots[msg.sender][plotId] = Plot({
             seedId: seedId,
-            plantedAt: block.timestamp,
-            readyAt: block.timestamp + adjustedGrowthTime,
+            plantedAt: 0,
+            readyAt: 0,
             growthBonusBP: growthBonusBP,
             yieldBonusBP: yieldBonusBP,
-            growing: true,
+            growing: false,
             harvestedAt: 0,
-            needsFertilizer: false
+            needsFertilizer: false,
+            startedGrowing: false,
+            state: PlotState.NeedsWater
         });
         emit SeedPlanted(msg.sender, plotId, seedId);
     }
@@ -616,15 +627,29 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
 
     // --- New Function ---
     function waterCrop(uint256 plotId) external whenNotPaused nonReentrant {
+        require(userEnergy[msg.sender] >= 1, "Not enough energy");
+        userEnergy[msg.sender] -= 1;
         require(userItemBalances[msg.sender][WATERING_CAN_ID] > 0, "No watering can");
         userItemBalances[msg.sender][WATERING_CAN_ID] -= 1;
-        // You can add logic here to update plot state, e.g. increase water level, improve quality, etc.
+        Plot storage plot = userPlots[msg.sender][plotId];
+        if (!plot.startedGrowing) {
+            Item storage seed = items[plot.seedId];
+            uint256 adjustedGrowthTime = seed.baseGrowthTime * (1000 - plot.growthBonusBP) / 1000;
+            plot.plantedAt = block.timestamp;
+            plot.readyAt = block.timestamp + adjustedGrowthTime;
+            plot.growing = true;
+            plot.startedGrowing = true;
+            plot.state = PlotState.Growing;
+        }
+        // else: normal watering logic (e.g., increase water level, improve quality, etc.)
         emit ToolUsed(msg.sender, WATERING_CAN_ID, plotId);
     }
 
     // --- New Functions for Tools ---
     // 1. Single Golden Harvester: Harvest one plot with +20% bonus, burn one per use
     function harvestWithGoldenHarvester(uint256 plotId) external whenNotPaused nonReentrant {
+        require(userEnergy[msg.sender] >= 1, "Not enough energy");
+        userEnergy[msg.sender] -= 1;
         require(userItemBalances[msg.sender][GOLDEN_HARVESTER_SINGLE_ID] > 0, "Need Golden Harvester (Single)");
         Plot storage plot = userPlots[msg.sender][plotId];
         require(plot.growing, "Nothing growing");
@@ -645,6 +670,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         plot.growing = false;
         plot.harvestedAt = block.timestamp;
         plot.needsFertilizer = true;
+        plot.state = PlotState.Locked;
         emit Harvested(msg.sender, plotId, totalYield);
         totalHarvests[msg.sender] += 1;
     }
@@ -729,7 +755,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         require(item.active, "Item inactive");
         require(item.supply >= amount, "Insufficient supply");
         require(item.priceETH == 0, "Not an RT-priced item");
-        uint256 priceRT = 50 ether * amount; // 50 RT per item (customize per item if needed)
+        uint256 priceRT = 50 * amount; // 50 RT per item (plain integer, no decimals)
         require(riceTokens[msg.sender] >= priceRT, "Not enough RT");
         riceTokens[msg.sender] -= priceRT;
         item.supply -= amount;
@@ -774,5 +800,29 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         plot.growing = false;
         plot.harvestedAt = 0;
         plot.needsFertilizer = false;
+        plot.state = PlotState.Empty;
+    }
+
+    // --- Claim Initial Energy (only once) ---
+    function claimInitialEnergy() external whenNotPaused {
+        require(!hasClaimedInitialEnergy[msg.sender], "Already claimed");
+        userEnergy[msg.sender] += 10;
+        hasClaimedInitialEnergy[msg.sender] = true;
+    }
+
+    // --- Buy Energy Booster (25 RT for 25 energy) ---
+    function buyEnergyBooster() external whenNotPaused nonReentrant {
+        uint256 boosterCost = 25; // 25 RT per booster
+        uint256 energyAmount = 25; // Each booster gives 25 energy
+        require(riceTokens[msg.sender] >= boosterCost, "Not enough RT");
+        require(items[ENERGY_BOOSTER_ID].supply > 0, "Energy Booster sold out");
+        riceTokens[msg.sender] -= boosterCost;
+        userEnergy[msg.sender] += energyAmount;
+        items[ENERGY_BOOSTER_ID].supply -= 1;
+        // Optionally emit an event
+    }
+
+    function getEnergyBoosterSupply() external view returns (uint256) {
+        return items[ENERGY_BOOSTER_ID].supply;
     }
 } 

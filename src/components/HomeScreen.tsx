@@ -57,7 +57,6 @@ function HomeScreen({
   const [energy, setEnergy] = useState(0);
   const [plots, setPlots] = useState<Plot[]>([]);
   const [dailyStreak, setDailyStreak] = useState(0);
-  const [farmLevel] = useState(0);
   const [totalHarvests] = useState(0);
   const [achievements] = useState<Achievement[]>([]);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
@@ -86,26 +85,16 @@ function HomeScreen({
     setDailyStreak(Number(streakData || 0));
   }, [streakData]);
 
-  // Sync energy with Firestore
+  // Add on-chain energy fetch
+  const { data: onChainEnergy } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userEnergy',
+    args: address ? [address as `0x${string}`] : undefined,
+  });
   useEffect(() => {
-    let energyTimer: NodeJS.Timeout | undefined;
-    if (address) {
-      // Fetch initial energy from Firestore
-      getUserData(address).then(user => {
-        if (user && typeof user.energy === 'number') setEnergy(user.energy);
-      });
-      // Set up interval to increment free energy (capped at 5)
-      energyTimer = setInterval(async () => {
-        await incrementFreeEnergy(address);
-        // Always fetch latest value from Firestore after increment
-        const user = await getUserData(address);
-        if (user && typeof user.energy === 'number') setEnergy(user.energy);
-      }, 60000); // 1 energy per minute
-    } else {
-      setEnergy(0); // Optionally reset energy display if not connected
-    }
-    return () => { if (energyTimer) clearInterval(energyTimer); };
-  }, [address]);
+    setEnergy(Number(onChainEnergy || 0));
+  }, [onChainEnergy]);
 
   // Listen for real-time plot updates
   useEffect(() => {
@@ -298,7 +287,6 @@ function HomeScreen({
 
   useEffect(() => {
     if (address) {
-      // Removed Firebase Auth UID console logging for production cleanliness
       resetDailyQuestsIfNeeded(address);
     }
   }, [address]);
@@ -335,6 +323,70 @@ function HomeScreen({
       });
     }
   }, [address, setPlayerLevel, setTotalXP]);
+
+  // Add state for claimable, lastClaimed, and timer
+  const [canClaimEnergy, setCanClaimEnergy] = useState(false);
+  const [claimCountdown, setClaimCountdown] = useState(0);
+  const { writeContract: writeClaimEnergy, data: claimTxHash, isPending: isClaimPending } = useContractWrite();
+  const { isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
+  const { data: hasClaimedInitialEnergy } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'hasClaimedInitialEnergy',
+    args: address ? [address] : undefined,
+  });
+  const { data: lastClaimedEnergy } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'lastEnergyClaim',
+    args: address ? [address] : undefined,
+  });
+  // Timer logic
+  useEffect(() => {
+    if (hasClaimedInitialEnergy) {
+      setCanClaimEnergy(false);
+      setClaimCountdown(0);
+      return;
+    }
+    if (lastClaimedEnergy === undefined) {
+      setCanClaimEnergy(true);
+      setClaimCountdown(0);
+      return;
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const last = Number(lastClaimedEnergy);
+    const diff = now - last;
+    if (diff >= 300) {
+      setCanClaimEnergy(true);
+      setClaimCountdown(0);
+    } else {
+      setCanClaimEnergy(false);
+      setClaimCountdown(300 - diff);
+    }
+    const interval = setInterval(() => {
+      const now = Math.floor(Date.now() / 1000);
+      const diff = now - last;
+      if (diff >= 300) {
+        setCanClaimEnergy(true);
+        setClaimCountdown(0);
+        clearInterval(interval);
+      } else {
+        setCanClaimEnergy(false);
+        setClaimCountdown(300 - diff);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lastClaimedEnergy, hasClaimedInitialEnergy]);
+  // Claim handler
+  const handleClaimEnergy = () => {
+    writeClaimEnergy({
+      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      abi: RiseFarmingABI as any,
+      functionName: 'claimInitialEnergy',
+      args: [],
+      account: address,
+    });
+  };
 
   return (
     <motion.div 
@@ -387,7 +439,15 @@ function HomeScreen({
               {address ? (
                 <>
                   <p className="text-3xl font-bold">{energy}/{maxEnergy}</p>
-                  <p className="text-blue-200 text-xs mt-1">Regenerating...</p>
+                  {address && !hasClaimedInitialEnergy && (
+                    <button
+                      onClick={handleClaimEnergy}
+                      disabled={isClaimPending}
+                      className={`mt-2 px-4 py-2 rounded-xl font-bold bg-yellow-400 text-white shadow-lg transition-all ${isClaimPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {isClaimPending ? 'Claiming...' : 'Claim 10 Energy'}
+                    </button>
+                  )}
                 </>
               ) : (
                 <>
@@ -446,7 +506,7 @@ function HomeScreen({
               <p className="text-purple-100 text-sm font-medium">Farm Level</p>
               {address ? (
                 <>
-                  <p className="text-3xl font-bold">{farmLevel}</p>
+                  <p className="text-3xl font-bold">{totalHarvests}</p>
                   <p className="text-purple-200 text-xs mt-1">{totalHarvests} harvests</p>
                 </>
               ) : (
@@ -576,7 +636,7 @@ function HomeScreen({
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-800">My Rice Fields</h2>
-              <p className="text-gray-600">{plots.length} plots • Level {farmLevel} Farm</p>
+              <p className="text-gray-600">{plots.length} plots • Level {totalHarvests} Farm</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
