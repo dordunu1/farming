@@ -446,33 +446,53 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     hash: txHash as `0x${string}` | undefined,
   });
 
+  // Place the activity logging useEffect here, after all hooks and state
   useEffect(() => {
-    if (txSuccess) {
-      setPending(false);
-      setSuccess(true);
-      // Log and sync activity after purchase
-      if (address && onChainRiceTokens !== undefined && onChainXP !== undefined && selectedItem) {
-        logAndSyncUserActivity(address, {
-          icon: getActivityIcon('buy', selectedItem.name),
-          action: `Bought ${quantity}x ${selectedItem.name}`,
-          time: new Date().toISOString(),
-          reward: selectedItem.currency === 'ETH' ? `-${selectedItem.usdPrice * quantity} ETH` : `-${selectedItem.usdPrice * quantity} RT`,
-          color: 'blue',
-          txHash: txHash || undefined,
-        }, {
-          riceTokens: Number(onChainRiceTokens),
-          totalXP: Number(onChainXP),
-        });
+    if (txSuccess && selectedItem && address && onChainRiceTokens !== undefined && onChainXP !== undefined) {
+      // Determine icon using getActivityIcon
+      const icon = getActivityIcon('buy', selectedItem.name);
+      // Calculate reward string
+      let reward = '';
+      if (selectedItem.currency === 'ETH') {
+        let ethSpent = 0;
+        if (selectedItem.category === 'bundle') {
+          const bundle = bundleDataMap.get(selectedItem.id);
+          if (bundle && Array.isArray(bundle) && bundle.length >= 3) {
+            ethSpent = (Number(bundle[2]) / 1e18) * quantity;
+          }
+        } else {
+          const itemIdx = marketItems.findIndex(m => m.id === selectedItem.id);
+          const itemRaw = itemsRaw?.[itemIdx];
+          if (itemRaw && typeof itemRaw === 'object' && 'result' in itemRaw && Array.isArray(itemRaw.result)) {
+            ethSpent = (Number(itemRaw.result[3]) / 1e18) * quantity;
+          }
+        }
+        reward = `-${ethSpent.toFixed(4)} ETH`;
+      } else {
+        reward = `-${selectedItem.usdPrice * quantity} RT`;
       }
-      // Success message is always shown in the modal for both single and bundle purchases, and for Energy Booster
-      const timeout = setTimeout(() => {
-        setSuccess(false);
-        setBuyModalOpen(false);
-        setSelectedItem(null);
-      }, 2000);
-      return () => clearTimeout(timeout);
+      // Log to both activity systems for reliability
+      addRecentActivity(address, {
+        icon,
+        action: `Bought ${quantity}x ${selectedItem.name}`,
+        time: new Date().toISOString(),
+        reward,
+        color: 'blue',
+        txHash: txHash || undefined,
+      });
+      logAndSyncUserActivity(address, {
+        icon,
+        action: `Bought ${quantity}x ${selectedItem.name}`,
+        time: new Date().toISOString(),
+        reward,
+        color: 'blue',
+        txHash: txHash || undefined,
+      }, {
+        riceTokens: Number(onChainRiceTokens),
+        totalXP: Number(onChainXP),
+      });
     }
-  }, [txSuccess, address, onChainRiceTokens, onChainXP, selectedItem, quantity, txHash]);
+  }, [txSuccess, selectedItem, address, txHash, quantity, itemsRaw, bundleDataMap, onChainRiceTokens, onChainXP]);
 
   // Close buy modal and reset state if wallet disconnects while modal is open
   useEffect(() => {
@@ -566,52 +586,6 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     }
   };
 
-  useEffect(() => {
-    if (txSuccess && selectedItem && address) {
-      // Determine icon
-      let icon = '🛒';
-      if (selectedItem.category === 'seeds') icon = '🌾';
-      else if (selectedItem.category === 'tools') icon = '��️';
-      else if (selectedItem.category === 'upgrades') icon = '⚡';
-      else if (selectedItem.category === 'bundle') icon = '📦';
-      // Determine amount and price
-      let amount = quantity;
-      let price = selectedItem.usdPrice * quantity;
-      let priceStr = selectedItem.currency === 'ETH' ? `-${price} ETH` : `-${price} RT`;
-      let action = `Bought ${amount}x ${selectedItem.name}`;
-      // For bundles, show breakdown
-      if (selectedItem.category === 'bundle') {
-        const bundle = bundleDataMap.get(selectedItem.id);
-        if (
-          bundle &&
-          Array.isArray(bundle) &&
-          Array.isArray(bundle[3]) &&
-          Array.isArray(bundle[4])
-        ) {
-          const itemIds = bundle[3] as number[];
-          const itemAmounts = bundle[4] as number[];
-          const breakdown = itemIds.map((id, idx) => {
-            const meta = marketItems.find(m => m.id === id);
-            return `${itemAmounts[idx] * quantity}x ${meta ? meta.name : 'Unknown Item'}`;
-          }).join(', ');
-          action = `Bought bundle: ${breakdown}`;
-          price = (Number(bundle[2]) / 1e18) * quantity;
-          priceStr = `-${price} ETH`;
-        } else {
-          action = 'Bought bundle (details unavailable)';
-        }
-      }
-      addRecentActivity(address, {
-        icon,
-        action,
-        time: new Date().toISOString(),
-        reward: priceStr,
-        color: 'blue',
-        txHash: txHash || undefined,
-      });
-    }
-  }, [txSuccess, selectedItem, address, txHash, quantity]);
-
   const getCardColor = (rarity: string) => {
     switch (rarity) {
       case 'legendary':
@@ -628,6 +602,19 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
 
   // Create a map from item ID to supply
   const supplyMap = new Map(marketItems.map((item: MarketItem, idx: number) => [item.id, supplies?.[idx] ?? '...']));
+
+  useEffect(() => {
+    if (txSuccess) {
+      setPending(false);
+      setSuccess(true);
+      // Optionally auto-close the modal after a short delay
+      // setTimeout(() => {
+      //   setSuccess(false);
+      //   setBuyModalOpen(false);
+      //   setSelectedItem(null);
+      // }, 2000);
+    }
+  }, [txSuccess]);
 
   return (
     <div className="space-y-6 pb-20">

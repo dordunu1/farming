@@ -695,6 +695,11 @@ function HomeScreen({
       {/* Enhanced Farm Grid */}
       <motion.div variants={itemVariants} className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 border border-emerald-100 shadow-lg">
         {/* Farm header row with Farm Value */}
+        <div className="flex flex-col w-full mb-4">
+          <div className="bg-yellow-100 border-l-4 border-yellow-400 text-yellow-800 p-3 rounded-md mb-2 text-sm">
+            <strong>Note:</strong> When a seed matures and shows <b>Harvesting</b>, there is a 1-minute cooldown before you can harvest. Please wait 1 minute after maturity before harvesting your crop.
+          </div>
+        </div>
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
@@ -708,11 +713,10 @@ function HomeScreen({
           <div className="flex items-center gap-4">
             {/* Farm Value Calculation */}
             {(() => {
-              const plantedPlots = plots.filter(p => ('seedId' in p ? (p as any).seedId !== 0 : p.cropType && p.cropType !== ''));
-              const totalYield = plantedPlots.reduce((sum, p) => sum + (p.expectedYield || 0), 0);
-              const bestSeed = marketItems
-                .filter(item => item.category === 'seeds' && typeof item.riseReward === 'number')
-                .reduce((max, item) => (item.riseReward! > (max?.riseReward || 0) ? item : max), null as null | typeof marketItems[0]);
+              // Sum all expectedYield values for all plots
+              const totalYield = plots.reduce((sum, p) => sum + (p.expectedYield || 0), 0);
+              // Find the best seed for max possible yield (optional, for %)
+              const bestSeed = marketItems.filter(item => item.category === 'seeds' && typeof item.riseReward === 'number').reduce((max, item) => (item.riseReward! > (max?.riseReward || 0) ? item : max), null as null | typeof marketItems[0]);
               const maxYieldPerPlot = bestSeed?.riseReward || 0;
               const maxPossibleYield = plots.length * maxYieldPerPlot;
               const farmValuePercent = maxPossibleYield > 0 ? Math.round((totalYield / maxPossibleYield) * 100) : 0;
@@ -768,7 +772,11 @@ function HomeScreen({
                   )}
                 </div>
               </div>
-              <div className="font-bold text-emerald-600 text-lg">{activity.reward}</div>
+              <div className="font-bold text-emerald-600 text-lg">{
+                typeof activity.reward === 'string' && activity.reward.startsWith('-')
+                  ? activity.reward.slice(1).trim()
+                  : activity.reward
+              }</div>
             </div>
           ))}
         </div>

@@ -124,27 +124,26 @@ function TransactionModal({
     // Add Firestore riceTokens update for harvest
     if (type === 'harvest' && transactionStatus === 'success' && address && plotId && currentPlot) {
       (async () => {
-        // Update Firestore as before
         const userRef = doc(db, 'users', address);
-        const userSnap = await getDoc(userRef);
-        let prevTokens = 0;
-        if (userSnap.exists()) {
-          const userData = userSnap.data();
-          prevTokens = Number(userData.riceTokens) || 0;
-        }
-        const newTokens = prevTokens + (currentPlot.expectedYield || 0);
-        await setDoc(userRef, { riceTokens: newTokens }, { merge: true });
-        // Fetch on-chain RT and update UI
+        // Fetch on-chain RT and update Firestore
         if (onChainRiceTokens !== undefined) {
+          await setDoc(userRef, { riceTokens: Number(onChainRiceTokens) }, { merge: true });
           setRiceTokens(Number(onChainRiceTokens));
         }
         // Log and sync activity after harvest
         if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
+          let actualYield = 0;
+          if (type === 'harvest' && Array.isArray(fetchedPlot)) {
+            const seedId = Number(fetchedPlot[0]);
+            const yieldBonusBP = Number(fetchedPlot[4]);
+            const baseReward = seedBaseRewards[seedId] || 0;
+            actualYield = Math.floor(baseReward * (1000 + yieldBonusBP) / 1000);
+          }
           logAndSyncUserActivity(address, {
             icon: getActivityIcon('harvest'),
             action: `Harvested Plot #${plotId}`,
             time: new Date().toISOString(),
-            reward: `+${currentPlot.expectedYield || 0} RT`,
+            reward: `+${actualYield} RT`,
             color: 'green',
             txHash: waterTxHash,
           }, {
@@ -152,7 +151,6 @@ function TransactionModal({
             totalXP: Number(onChainXP),
           });
         }
-        // Close modal after short delay
         setTimeout(() => {
           onClose();
           setTransactionStatus('idle');
@@ -236,13 +234,13 @@ function TransactionModal({
     // Add more as needed
   };
 
-  let yieldRT = 0;
-  if (Array.isArray(fetchedPlot)) {
+  // Calculate actualYield for harvest modal and activity log
+  let actualYield = 0;
+  if (type === 'harvest' && Array.isArray(fetchedPlot)) {
     const seedId = Number(fetchedPlot[0]);
     const yieldBonusBP = Number(fetchedPlot[4]);
     const baseReward = seedBaseRewards[seedId] || 0;
-    yieldRT = Math.floor(baseReward * (1000 + yieldBonusBP) / 1000);
-    console.log('DEBUG yield calculation:', { seedId, yieldBonusBP, baseReward, yieldRT, fetchedPlot });
+    actualYield = Math.floor(baseReward * (1000 + yieldBonusBP) / 1000);
   }
 
   const getActionData = () => {
@@ -260,7 +258,7 @@ function TransactionModal({
         description: 'Harvest your fully grown rice and earn tokens',
         icon: <Scissors className="w-8 h-8 text-yellow-500" />,
         cost: '1 Energy',
-        benefit: `Earn ${yieldRT} Rice Tokens`
+        benefit: `Earn ${actualYield} Rice Tokens`
       };
     }
   };
@@ -500,7 +498,7 @@ function TransactionModal({
             {type === 'harvest' && currentPlot && (
               <div className="bg-emerald-50 rounded-xl p-4 mb-4">
                 <p className="text-emerald-700 font-medium">
-                  +{currentPlot.expectedYield} Rice Tokens earned!
+                  +{actualYield} Rice Tokens earned!
                 </p>
               </div>
             )}

@@ -415,6 +415,7 @@ export function getActivityIcon(type: string, itemName?: string): string {
     case 'water': return '💧';
     case 'harvest': return '✂️';
     case 'buy':
+      if (itemName?.toLowerCase().includes('golden harvester')) return '✂️';
       if (itemName?.toLowerCase().includes('seed')) return '🌾';
       if (itemName?.toLowerCase().includes('watering can')) return '🛠️';
       if (itemName?.toLowerCase().includes('bundle')) return '📦';
