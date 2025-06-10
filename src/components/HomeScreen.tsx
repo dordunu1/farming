@@ -57,7 +57,6 @@ function HomeScreen({
   const [energy, setEnergy] = useState(0);
   const [plots, setPlots] = useState<Plot[]>([]);
   const [dailyStreak, setDailyStreak] = useState(0);
-  const [totalHarvests] = useState(0);
   const [achievements] = useState<Achievement[]>([]);
   const [recentActivity, setRecentActivity] = useState<Activity[]>([]);
   const [activityPage, setActivityPage] = useState(0);
@@ -69,7 +68,6 @@ function HomeScreen({
   // Track quest progress fields
   const [numPlanted, setNumPlanted] = useState(0);
   const [numWatered, setNumWatered] = useState(0);
-  const [numHarvested, setNumHarvested] = useState(0);
 
   const maxEnergy = 100;
   const energyPercentage = (energy / maxEnergy) * 100;
@@ -110,20 +108,27 @@ function HomeScreen({
     return () => unsub && unsub();
   }, [address]);
 
+  // Fetch on-chain totalHarvests for quest progress
+  const { data: onChainTotalHarvests } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'totalHarvests',
+    args: address ? [address as `0x${string}`] : undefined,
+  });
+  const totalHarvests = Number(onChainTotalHarvests || 0);
+
   // Fetch user quest progress from Firestore
   useEffect(() => {
     if (!address) {
       setDailyQuests([]);
       setNumPlanted(0);
       setNumWatered(0);
-      setNumHarvested(0);
       return;
     }
     const unsubscribe = onUserDataSnapshot(address, user => {
       if (user) {
         setNumPlanted(user.numPlanted || 0);
         setNumWatered(user.numWatered || 0);
-        setNumHarvested(user.numHarvested || 0);
         // Compute quests
         const quests: DailyQuest[] = [
           {
@@ -150,10 +155,10 @@ function HomeScreen({
             id: 3,
             title: 'Harvest 2 plots',
             icon: <Scissors className="w-5 h-5 text-yellow-600 inline mr-1" />,
-            progress: Math.min(user.numHarvested || 0, 2),
+            progress: Math.min(totalHarvests, 2),
             target: 2,
             reward: 2,
-            completed: (user.numHarvested || 0) >= 2,
+            completed: totalHarvests >= 2,
             claimed: dailyQuests.find(q => q.id === 3)?.claimed || false,
           },
         ];
@@ -163,7 +168,7 @@ function HomeScreen({
       }
     });
     return () => unsubscribe();
-  }, [address]);
+  }, [address, totalHarvests]);
 
   // Add state for water cans
   const [waterCans, setWaterCans] = useState(0);
@@ -246,10 +251,10 @@ function HomeScreen({
       id: 3,
       title: 'Harvest 2 plots',
       icon: <Scissors className="w-5 h-5 text-yellow-600 inline mr-1" />,
-      progress: Math.min(numHarvested || 0, 2),
+      progress: Math.min(totalHarvests, 2),
       target: 2,
       reward: 2,
-      completed: (numHarvested || 0) >= 2,
+      completed: totalHarvests >= 2,
       claimed: Boolean(claimedStates?.[2]?.result),
     },
   ];
