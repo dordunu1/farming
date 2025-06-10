@@ -82,10 +82,11 @@ function Inventory() {
   }
 
   // Prepare inventory list
+  // Always show Fertilizer Spreader (id: 12) in inventory, even if amount is 0
   const inventory: { item: MarketItem; amount: number }[] = marketItems.map((item, idx) => ({
     item,
     amount: Number(balances[idx] ?? 0),
-  })).filter(entry => entry.amount > 0);
+  })).filter(entry => entry.amount > 0 || entry.item.id === 12); // 12 = Fertilizer Spreader
 
   return (
     <div className="max-w-4xl mx-auto py-10">

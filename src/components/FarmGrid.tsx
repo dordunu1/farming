@@ -8,6 +8,13 @@ import { db } from '../lib/firebase';
 import { updatePlotProgress } from '../lib/firebaseUser';
 import CircularProgressBar from './CircularProgressBar';
 import { marketItems } from './Marketplace';
+import { useContractWrite, useContractRead, useWaitForTransactionReceipt, useContractReads } from 'wagmi';
+import RiseFarmingABI from '../abi/RiseFarming.json';
+import { useAccount } from 'wagmi';
+import type { Abi } from 'viem';
+
+// Define FERTILIZER_SPREADER_ID constant (should match Marketplace/Inventory)
+const FERTILIZER_SPREADER_ID = 12; // Fertilizer Spreader ID
 
 interface FarmGridProps {
   isWalletConnected: boolean;
@@ -35,13 +42,143 @@ interface Plot {
   _lastFirestoreUpdate?: number;
   yieldBonusBP?: number;
   rarity: 'common' | 'rare' | 'legendary';
+  harvestedAt?: number;
+  needsFertilizer?: boolean;
+}
+
+function LockedOverlay({ harvestedAt }: { harvestedAt: number }) {
+  const [countdown, setCountdown] = React.useState(0);
+  React.useEffect(() => {
+    if (harvestedAt) {
+      const interval = setInterval(() => {
+        const nowSec = Math.floor(Date.now() / 1000);
+        const unlockSec = harvestedAt + 2 * 60; // 2 minutes
+        setCountdown(Math.max(0, unlockSec - nowSec));
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [harvestedAt]);
+  return (
+    <div className="absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center rounded-2xl border-4 border-yellow-400">
+      <div className="text-white text-center">
+        <div className="mb-2 text-lg font-bold flex items-center justify-center">
+          <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 17a2 2 0 002-2v-2a2 2 0 00-4 0v2a2 2 0 002 2zm6-2v-2a6 6 0 10-12 0v2a2 2 0 002 2h8a2 2 0 002-2z"/></svg>
+          Plot Locked
+        </div>
+        <div className="mb-2 text-sm">This plot is locked for a cooldown period after harvest.<br />It will be available for planting after the cooldown <b>and</b> applying Fertilizer.</div>
+        <div className="mt-2 text-gray-200 font-semibold text-base flex items-center justify-center">
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0v2a2 2 0 002 2h8a2 2 0 002-2V8z"/></svg>
+          {countdown > 0
+            ? `Available to revive in ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')} minutes`
+            : 'Ready to revive!'}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTokens, plots, setPlots, waterCans }: FarmGridProps) {
   const [selectedPlot, setSelectedPlot] = useState<number | null>(null);
   const [showPlantModal, setShowPlantModal] = useState(false);
   const [showTransactionModal, setShowTransactionModal] = useState(false);
+  const [showReviveModal, setShowReviveModal] = useState(false);
   const [transactionType, setTransactionType] = useState<'water' | 'harvest'>('water');
+  const { address } = useAccount();
+
+  // Contract write for revivePlot
+  const { writeContract: writeRevivePlot, data: reviveTxHash, isPending: isRevivePending } = useContractWrite();
+  const { isSuccess: isReviveSuccess } = useWaitForTransactionReceipt({ hash: reviveTxHash });
+
+  // Fetch user's fertilizer count from inventory
+  const { data: fertilizerCount } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userItemBalances',
+    args: address ? [address, FERTILIZER_SPREADER_ID] : undefined,
+  });
+
+  // Fetch all plots from the contract
+  const NUM_PLOTS = 16;
+  const plotIds = Array.from({ length: NUM_PLOTS }, (_, i) => i + 1);
+  const { data: onChainPlots, refetch: refetchOnChainPlots } = useContractReads({
+    contracts: address
+      ? plotIds.map((id) => ({
+          address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+          abi: RiseFarmingABI as Abi,
+          functionName: 'userPlots',
+          args: [address, id],
+        }))
+      : []
+  });
+
+  // Update plots state with on-chain data
+  useEffect(() => {
+    if (onChainPlots && Array.isArray(onChainPlots)) {
+      const mappedPlots = onChainPlots.map((result, idx) => {
+        const p = (result as any)?.result;
+        if (!p) return plots[idx] || {};
+        // ABI: [seedId, plantedAt, readyAt, growthBonusBP, yieldBonusBP, growing, harvestedAt, needsFertilizer]
+        const now = Date.now() / 1000;
+        let status: Plot['status'] = 'empty';
+        if (p[7]) {
+          status = 'empty'; // locked, UI will show lock
+        } else if (p[0] === 0) {
+          status = 'empty';
+        } else if (p[0] !== 0 && p[5]) {
+          status = 'growing';
+        } else if (p[0] !== 0 && !p[5] && p[2] > 0 && Number(p[2]) <= now) {
+          status = 'ready';
+        } else if (p[0] !== 0 && !p[5] && p[2] > 0 && Number(p[2]) > now) {
+          status = 'growing'; // fallback for just planted
+        }
+        // Use a mapping for seedId to name, always from on-chain value
+        const seedNames: Record<number, string> = {
+          9: 'Basic Rice Seed',
+          10: 'Premium Rice Seed',
+          11: 'Hybrid Rice Seed',
+          // Add more as needed
+        };
+        let cropType = '';
+        if (p[0] && p[0] !== 0) {
+          cropType = seedNames[p[0]] || `Seed #${p[0]}`;
+        }
+        let expectedYield = 0;
+        if (p[0] === 9) expectedYield = 15;
+        else if (p[0] === 10) expectedYield = 50;
+        else if (p[0] === 11) expectedYield = 70;
+        if (p[0] !== 0 && p[4] > 0) {
+          expectedYield = Math.round(expectedYield * (1 + Number(p[4]) / 1000));
+        }
+        return {
+          ...plots[idx],
+          id: idx + 1,
+          seedId: p[0],
+          plantedAt: Number(p[1]),
+          readyAt: Number(p[2]),
+          growthBonusBP: Number(p[3]),
+          yieldBonusBP: Number(p[4]),
+          growing: p[5],
+          harvestedAt: Number(p[6]),
+          needsFertilizer: p[7],
+          status,
+          cropType,
+          expectedYield,
+        };
+      });
+      setPlots(mappedPlots);
+    }
+    // eslint-disable-next-line
+  }, [onChainPlots]);
+
+  // Refetch on-chain plots after successful planting (PlantModal closes with success)
+  useEffect(() => {
+    // Listen for a custom event dispatched by PlantModal after planting
+    function handlePlanted() {
+      if (typeof refetchOnChainPlots === 'function') refetchOnChainPlots();
+    }
+    window.addEventListener('planted', handlePlanted);
+    return () => window.removeEventListener('planted', handlePlanted);
+  }, [refetchOnChainPlots]);
 
   // Update plots every minute
   useEffect(() => {
@@ -88,15 +225,30 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
     return () => clearInterval(timer);
   }, []);
 
+  // Helper to check if a plot is ready to revive
+  const isReadyToRevive = (plot: Plot) => {
+    if (!plot.needsFertilizer || !plot.harvestedAt) return false;
+    const nowSec = Math.floor(Date.now() / 1000);
+    return nowSec >= plot.harvestedAt + 2 * 60; // 2 minutes
+  };
+
+  // Handler for clicking a plot
   const handlePlotClick = (plot: Plot) => {
     if (!isWalletConnected) return;
-    setSelectedPlot(plot.id);
+    if (plot.needsFertilizer && isReadyToRevive(plot)) {
+      setSelectedPlot(plot.id);
+      setShowReviveModal(true);
+      return;
+    }
     if (plot.status === 'empty') {
+      setSelectedPlot(plot.id);
       setShowPlantModal(true);
     } else if (plot.status === 'ready') {
+      setSelectedPlot(plot.id);
       setTransactionType('harvest');
       setShowTransactionModal(true);
     } else if (plot.status === 'growing' || plot.status === 'watering' || plot.status === 'withering') {
+      setSelectedPlot(plot.id);
       setTransactionType('water');
       setShowTransactionModal(true);
     }
@@ -195,6 +347,77 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const maxPossibleYield = plots.length * maxYieldPerPlot;
   const farmValuePercent = maxPossibleYield > 0 ? Math.round((totalYield / maxPossibleYield) * 100) : 0;
 
+  // Placeholder: revivePlot function (to be wired to contract)
+  const revivePlot = (plotId: number) => {
+    if (!address) return;
+    writeRevivePlot({
+      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      abi: RiseFarmingABI as any,
+      functionName: 'revivePlot',
+      args: [plotId],
+      account: address,
+    });
+  };
+
+  // Add this effect in FarmGrid
+  useEffect(() => {
+    if (isReviveSuccess) {
+      refetchOnChainPlots();
+    }
+  }, [isReviveSuccess, refetchOnChainPlots]);
+
+  // Update plots every minute
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPlots(prevPlots => {
+        const updatedPlots = prevPlots.map(plot => {
+          if (plot.status === 'growing' || plot.status === 'watering' || plot.status === 'withering' || plot.status === 'ready') {
+            const newTimeRemaining = Math.max(0, (plot.timeRemaining || 0) - 1);
+            const newProgress = plot.timeRemaining ? Math.min(100, 100 - (newTimeRemaining / (plot.timeRemaining + 1)) * 100) : plot.progress;
+            const timeSinceWatered = plot.lastWatered ? (Date.now() - plot.lastWatered) / (1000 * 60 * 60) : 24; // hours
+            const newWaterLevel = Math.max(0, plot.waterLevel - (timeSinceWatered * 2)); // 2% per hour
+            let newStatus = plot.status;
+            if (newTimeRemaining === 0 && newProgress >= 100) {
+              newStatus = 'ready';
+            } else if (newWaterLevel < 20) {
+              newStatus = 'withering';
+            } else if (newWaterLevel > 80) {
+              newStatus = 'watering';
+            } else {
+              newStatus = 'growing';
+            }
+            // Always update Firestore with new progress and waterLevel
+            const user = localStorage.getItem('walletAddress');
+            if (user) {
+              import('../lib/firebaseUser').then(({ updatePlotProgress }) => {
+                updatePlotProgress(user, plot.id, newProgress, newWaterLevel, newWaterLevel !== plot.waterLevel ? Date.now() : plot.lastWatered);
+              });
+            }
+            return {
+              ...plot,
+              timeRemaining: newTimeRemaining,
+              progress: newProgress,
+              waterLevel: newWaterLevel,
+              status: newStatus,
+              // Do not recalculate quality here; always use Firestore value
+            };
+          }
+          return plot;
+        });
+        return updatedPlots;
+      });
+    }, 60000); // Update every minute
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Close revive modal after tx success
+  useEffect(() => {
+    if (isReviveSuccess && showReviveModal) {
+      setTimeout(() => setShowReviveModal(false), 1200);
+    }
+  }, [isReviveSuccess, showReviveModal]);
+
   return (
     <>
       {/* Inline biome CSS for immediate visual effect */}
@@ -228,7 +451,10 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
         }
       `}</style>
       <div className="grid grid-cols-4 gap-4">
-        {plots.map((plot) => {
+        {plots.map((plot, idx) => {
+          // Show locked state if plot.needsFertilizer is true
+          const showLocked = plot.needsFertilizer;
+
           // Calculate progress and time left based on plantedAt and readyAt (on-chain)
           let growthProgress = 0;
           let timeLeft = 0;
@@ -278,6 +504,8 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
             renderStatus = 'ready';
           }
           // --- Render ---
+          const nowSec = Math.floor(Date.now() / 1000);
+          const canRevive = plot.needsFertilizer && plot.harvestedAt && (nowSec >= plot.harvestedAt + 60 * 60 * 24 * 21); // 3 weeks
           return (
             <motion.div
               key={plot.id}
@@ -293,6 +521,14 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
                   ? `${plot.cropType} (Quality: ${plot.quality})`
                   : 'Tap to plant'}
             >
+              {/* Locked badge/icon */}
+              {showLocked && (
+                <div className="absolute top-2 right-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs font-bold z-40 flex items-center shadow-lg">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 17a2 2 0 002-2v-2a2 2 0 00-4 0v2a2 2 0 002 2zm6-2v-2a6 6 0 10-12 0v2a2 2 0 002 2h8a2 2 0 002-2z"/></svg>
+                  Locked
+                </div>
+              )}
+              {showLocked && <LockedOverlay harvestedAt={plot.harvestedAt || 0} />}
               <div style={{ width: '100%', height: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative' }}>
                 {/* Biome soil and grass layers (SVG for realism) */}
                 <div className="biome-soil-svg" style={{ position: 'absolute', bottom: 0, left: 0, width: '100%', height: '76px', zIndex: 1, overflow: 'hidden', pointerEvents: 'none' }}>
@@ -433,6 +669,55 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
         setPlots={setPlots}
         waterCans={waterCans}
       />
+
+      {/* Revive Modal */}
+      {showReviveModal && selectedPlot !== null && (
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-24">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+                <svg className="w-6 h-6 mr-2 text-yellow-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 17a2 2 0 002-2v-2a2 2 0 00-4 0v2a2 2 0 002 2zm6-2v-2a6 6 0 10-12 0v2a2 2 0 002 2h8a2 2 0 002-2z"/></svg>
+                Revive Plot #{selectedPlot}
+              </h2>
+              <button onClick={() => setShowReviveModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="mb-4 text-gray-700 text-center">
+              This plot is ready to be revived! Apply fertilizer to unlock it for planting.
+            </div>
+            <div className="mb-4 text-center">
+              <span className="font-semibold">Fertilizer in Inventory: </span>
+              <span className="text-emerald-600 font-bold">{Number(fertilizerCount) || 0}</span>
+            </div>
+            {Number(fertilizerCount) > 0 ? (
+              <button
+                className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
+                onClick={() => {
+                  writeRevivePlot({
+                    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+                    abi: RiseFarmingABI as any,
+                    functionName: 'revivePlot',
+                    args: [selectedPlot],
+                    account: address,
+                  });
+                  // Do NOT close modal here; wait for tx to finish
+                }}
+                disabled={isRevivePending}
+              >
+                {isRevivePending ? 'Reviving...' : 'Apply Fertilizer to Revive'}
+              </button>
+            ) : (
+              <a
+                href="/marketplace"
+                className="w-full block text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-3 rounded-xl font-medium hover:from-yellow-500 hover:to-orange-600 transition-all duration-200 mt-2"
+              >
+                Buy Fertilizer in Marketplace
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

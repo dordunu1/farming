@@ -15,13 +15,13 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   const { address } = useAccount();
   const [status, setStatus] = React.useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const rewards = [
-    { day: 1, reward: 0.5 },
-    { day: 2, reward: 1 },
-    { day: 3, reward: 1.5 },
-    { day: 4, reward: 2 },
-    { day: 5, reward: 2.5 },
-    { day: 6, reward: 3 },
-    { day: 7, reward: 3.5 },
+    { day: 1, reward: 1 },
+    { day: 2, reward: 2 },
+    { day: 3, reward: 3 },
+    { day: 4, reward: 4 },
+    { day: 5, reward: 5 },
+    { day: 6, reward: 6 },
+    { day: 7, reward: 7 },
   ];
 
   // Always call the hook at the top level, use enabled to control fetching
@@ -65,6 +65,20 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   };
   const { writeContract, data, isPending, isError } = useContractWrite();
   const { isSuccess } = useWaitForTransactionReceipt({ hash: data });
+
+  // Fetch dailyRewardPaused flag
+  const { data: dailyRewardPaused } = useContractReads({
+    contracts: address
+      ? [
+          {
+            address: RISE_FARMING_ADDRESS,
+            abi: RiseFarmingABI as any,
+            functionName: 'dailyRewardPaused',
+          },
+        ]
+      : [],
+  });
+  const isPaused = dailyRewardPaused?.[0]?.result === true;
 
   React.useEffect(() => {
     if (isPending) setStatus('pending');
@@ -162,11 +176,22 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
         </div>
         <button
           onClick={handleClaim}
-          disabled={!canClaim || isPending || status === 'success'}
-          className={`w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 ${(!canClaim || isPending) ? 'opacity-60 cursor-not-allowed' : ''}`}
+          disabled={!canClaim || isPending || status === 'success' || isPaused}
+          className={`w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 ${(!canClaim || isPending || isPaused) ? 'opacity-60 cursor-not-allowed' : ''}`}
         >
-          {status === 'pending' ? 'Claiming...' : status === 'success' ? 'Claimed!' : !canClaim ? `Next claim in ${formatCountdown(secondsLeft)}` : 'Claim Reward'}
+          {isPaused
+            ? 'Daily Rewards Paused'
+            : status === 'pending'
+              ? 'Claiming...'
+              : status === 'success'
+                ? 'Claimed!'
+                : !canClaim
+                  ? `Next claim in ${formatCountdown(secondsLeft)}`
+                  : 'Claim Reward'}
         </button>
+        {isPaused && (
+          <div className="text-yellow-600 text-center mt-2 font-semibold">Daily rewards are currently paused by the team.</div>
+        )}
         {status === 'error' && <div className="text-red-500 text-center mt-2">Error claiming reward. Please try again.</div>}
       </div>
     </div>

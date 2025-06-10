@@ -19,27 +19,31 @@ const CircularProgressBar: React.FC<CircularProgressBarProps> = ({
   label,
   className = '',
 }) => {
-  const radius = (size - strokeWidth) / 2;
+  // Defensive checks
+  const safeValue = isNaN(Number(value)) ? 0 : Math.max(0, Math.min(100, Number(value)));
+  const safeSize = isNaN(Number(size)) ? 48 : Number(size);
+  const safeStrokeWidth = isNaN(Number(strokeWidth)) ? 6 : Number(strokeWidth);
+  const radius = (safeSize - safeStrokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - value / 100);
+  const offset = circumference * (1 - safeValue / 100);
 
   return (
-    <svg width={size} height={size} className={className} style={{ display: 'block' }}>
+    <svg width={safeSize} height={safeSize} className={className} style={{ display: 'block' }}>
       <circle
-        cx={size / 2}
-        cy={size / 2}
+        cx={safeSize / 2}
+        cy={safeSize / 2}
         r={radius}
         fill="none"
         stroke={bgColor}
-        strokeWidth={strokeWidth}
+        strokeWidth={safeStrokeWidth}
       />
       <circle
-        cx={size / 2}
-        cy={size / 2}
+        cx={safeSize / 2}
+        cy={safeSize / 2}
         r={radius}
         fill="none"
         stroke={color}
-        strokeWidth={strokeWidth}
+        strokeWidth={safeStrokeWidth}
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         strokeLinecap="round"
@@ -51,7 +55,7 @@ const CircularProgressBar: React.FC<CircularProgressBarProps> = ({
           y="50%"
           textAnchor="middle"
           dominantBaseline="central"
-          fontSize={size * 0.32}
+          fontSize={safeSize * 0.32}
           fill="#222"
           fontWeight="bold"
         >

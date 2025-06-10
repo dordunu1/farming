@@ -178,6 +178,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
           );
         }
         setShowToast(true);
+        window.dispatchEvent(new Event('planted'));
         setTimeout(() => {
           setShowToast(false);
           setStep(1);

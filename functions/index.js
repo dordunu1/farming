@@ -4,7 +4,7 @@ const { ethers } = require('ethers');
 const { getAddress } = require('ethers');
 admin.initializeApp();
 
-const CONTRACT_ADDRESS = '0xAaa9b92cce37333A998955e32F898815051cf967'; // Replace with your actual deployed contract address
+const CONTRACT_ADDRESS = '0x5B3d0F121915e673436bf3180752987543aCDF8d'; // Replace with your actual deployed contract address
 const ABI = require('./RiseFarmingABI.json').abi; // Get the ABI array directly
 const PRIVATE_KEY = '81c29ddc0405afeaa7922079ec754f5d4bc4f5d209f45c6793d3b125c1f8b686';
 const RPC_URL = 'https://testnet.riselabs.xyz';

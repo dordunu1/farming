@@ -249,12 +249,69 @@ To ensure fairness and prevent cheating, all growth speed and yield bonuses are 
 
 ### Tool Effects Table
 
-| Tool                      | How to Use / Apply                        | On-Chain Effect                                      |
-|---------------------------|-------------------------------------------|------------------------------------------------------|
-| Golden Harvester (Single) | `harvestWithGoldenHarvester(plotId)`      | Harvests one plot, +20% RT, burns one tool           |
-| Golden Harvester (Bundle) | `multiHarvestWithGoldenHarvester()`       | Harvests all ready plots, +20% RT each, burns bundle |
-| Fertilizer Spreader       | `applyFertilizer(plotId)`                 | Boosts growth/yield for a plot, burns one tool       |
-| Auto-Watering System      | `autoWaterCrops()`                        | Waters all growing plots for owner, burns one if used|
+| Tool                      | How to Use / Apply                        | On-Chain Effect                                      | Durability |
+|---------------------------|-------------------------------------------|------------------------------------------------------|------------|
+| Golden Harvester (Single) | `harvestWithGoldenHarvester(plotId)`      | Harvests one plot, +20% RT, burns after 5 uses       | 5 uses     |
+| Golden Harvester (Bundle) | `multiHarvestWithGoldenHarvester()`       | Harvests all ready plots, +20% RT each, burns after 5 uses | 5 uses     |
+| Fertilizer Spreader       | `applyFertilizer(plotId)`                 | Boosts growth/yield for a plot, burns one tool per use| 1 use      |
+| Auto-Watering System      | `autoWaterCrops()`                        | Waters all growing plots for owner, burns after 5 uses| 5 uses     |
+
+### UI/UX Notes
+- Show the number of uses left for each tool in the UI.
+- Warn the user when a tool is about to break (1 use left).
+- Auto-harvest (cron) also decrements uses and burns the tool after 5 uses.
+
+## Plot Revival After Harvest (New Mechanic)
+
+### Plot Lifecycle Update
+After a plot is harvested, it enters a cooldown period and cannot be replanted immediately. The new lifecycle is:
+
+1. **Growing** → 2. **Ready** → 3. **Harvested (Locked)** → 4. **Reviving (with Fertilizer)** → 5. **Available for Planting**
+
+- **Harvested (Locked):** When a plot is harvested, it is set to `growing = false`, and a `harvestedAt` timestamp is recorded. The plot is locked for 3 weeks and cannot be replanted.
+- **Reviving:** After 3 weeks, the user must apply a Fertilizer Spreader to the plot to revive it. This burns one fertilizer and sets the plot as available for planting again.
+
+### On-Chain Logic
+- The Plot struct now includes `harvestedAt` and `needsFertilizer` fields.
+- After harvest, set `growing = false`, `harvestedAt = block.timestamp`, and `needsFertilizer = true`.
+- To revive, the user calls `revivePlot(plotId)`, which checks:
+  - 3 weeks have passed since `harvestedAt`
+  - The user has a fertilizer item (burns one)
+  - Sets `needsFertilizer = false` so the plot can be planted again
+- Planting is only allowed if `needsFertilizer == false`.
+
+### UI/UX Notes
+- Show a "Locked" or "Revive" state on the plot card after harvest.
+- Display a timer for when the plot can be revived.
+- Show a "Revive with Fertilizer" button if the cooldown is over and the user has fertilizer in their wallet.
+- If the user does not have fertilizer, show a prompt to buy more.
+
+## Tool Durability (New Mechanic)
+
+### How It Works
+- **Golden Harvester (Single & Bundle)** and **Auto-Watering System** now have durability.
+- Each tool can be used **5 times** before it is burned (removed from inventory).
+- The number of uses left is tracked on-chain.
+- When a tool is purchased or received, it starts with 5 uses.
+- Each time you use the tool (manual or via cron/auto), the use count decreases by 1.
+- When uses reach 0, the tool is burned.
+
+### Example
+- If you buy 2 Golden Harvesters, you get 10 total uses (5 per tool).
+- After 5 uses, 1 harvester is burned; after 10, both are gone.
+
+### UI/UX Notes
+- Show the number of uses left for each tool in the UI.
+- Warn the user when a tool is about to break (1 use left).
+- Auto-harvest (cron) also decrements uses and burns the tool after 5 uses.
+
+## Plot Lifecycle (On-Chain Logic Clarification)
+
+- When you plant a seed, the contract sets `plantedAt` and `readyAt` timestamps, and marks the plot as `growing`.
+- The plot is considered **ready to harvest** as soon as the current time passes `readyAt` and `growing` is still true. This is checked automatically by the contract—**no background job or update function is needed**.
+- When you harvest, the contract immediately sets `growing = false`, records `harvestedAt`, and sets `needsFertilizer = true` to start the revival cooldown.
+- The plot remains locked until the cooldown passes and you apply fertilizer to revive it.
+- All state transitions are handled by contract logic and timestamps—**the UI simply reads the current state from the contract**.
 
 ---
 

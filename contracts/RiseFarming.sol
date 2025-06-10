@@ -40,6 +40,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         uint16 growthBonusBP;
         uint16 yieldBonusBP;
         bool growing;
+        uint256 harvestedAt;
+        bool needsFertilizer;
     }
 
     // --- Storage ---
@@ -93,6 +95,9 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
     uint256 public constant GOLDEN_HARVESTER_SINGLE_ID = 17;
     uint256 public constant GOLDEN_HARVESTER_BUNDLE_ID = 18;
 
+    // Add tool durability mapping
+    mapping(address => mapping(uint256 => uint256)) public userToolUses;
+
     // --- Events ---
     event ItemPurchased(address indexed user, uint256 bundleId, uint256[] itemIds, uint256[] amounts, address paymentToken, uint256 price);
     event SeedPlanted(address indexed user, uint256 plotId, uint256 seedId);
@@ -108,32 +113,37 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
     event ItemPurchasedWithRT(address indexed user, uint256 itemId, uint256 amount, uint256 totalRT);
     event PlotReady(address indexed user, uint256 plotId);
     event PlotAutoWatered(address indexed user, uint256 plotId);
+    event ToolUseDecremented(address indexed user, uint256 toolId, uint256 usesLeft);
+    event ToolBurned(address indexed user, uint256 toolId);
 
     // --- Storage ---
     mapping(address => mapping(uint256 => uint256)) public userSingleSeeds;
     mapping(address => mapping(uint256 => uint256)) public userBundleSeeds;
 
+    // Add a pause flag for daily rewards
+    bool public dailyRewardPaused = false;
+
     // --- Constructor ---
     constructor() Ownable(msg.sender) {
         acceptedPaymentTokens[address(0)] = true;
-        dailyRewards = [1 ether, 2 ether, 3 ether, 4 ether, 5 ether, 6 ether, 7 ether];
+        dailyRewards = [1, 2, 3, 4, 5, 6, 7]; // Example: 1 RT for day 1, 2 RT for day 2, etc.
 
-        // Add Basic Rice Seed (Single)
+        // Update Basic Rice Seed (Single)
         items[BASIC_SEED_SINGLE_ID] = Item({
             id: BASIC_SEED_SINGLE_ID,
             name: "Basic Rice Seed (Single)",
             itemType: 0,
             priceETH: 400000000000000, // 0.0004 ETH
             paymentToken: address(0),
-            baseReward: 100,
-            baseGrowthTime: 420, // 7 minutes for testing
-            growthBonusBP: 15,
-            yieldBonusBP: 15,
+            baseReward: 15,
+            baseGrowthTime: 420, // 7 minutes
+            growthBonusBP: 0,
+            yieldBonusBP: 0,
             active: true,
             maxSupply: 10000,
             supply: 10000
         });
-        // Add Basic Rice Seed (Bundle)
+        // Update Basic Rice Seed (Bundle)
         bundles[13] = Bundle({
             id: 13,
             name: "Basic Rice Seed (Bundle)",
@@ -147,22 +157,25 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
-        // Add Premium Rice Seed (Single)
+        items[BASIC_SEED_SINGLE_ID].growthBonusBP = 15;
+        items[BASIC_SEED_SINGLE_ID].yieldBonusBP = 15;
+
+        // Update Premium Rice Seed (Single)
         items[PREMIUM_SEED_SINGLE_ID] = Item({
             id: PREMIUM_SEED_SINGLE_ID,
             name: "Premium Rice Seed (Single)",
             itemType: 0,
             priceETH: 600000000000000, // 0.0006 ETH
             paymentToken: address(0),
-            baseReward: 200,
-            baseGrowthTime: 360, // 6 minutes for testing
-            growthBonusBP: 30,
-            yieldBonusBP: 30,
+            baseReward: 50,
+            baseGrowthTime: 360, // 6 minutes
+            growthBonusBP: 0,
+            yieldBonusBP: 0,
             active: true,
             maxSupply: 4000,
             supply: 4000
         });
-        // Add Premium Rice Seed (Bundle)
+        // Update Premium Rice Seed (Bundle)
         bundles[14] = Bundle({
             id: 14,
             name: "Premium Rice Seed (Bundle)",
@@ -176,22 +189,25 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
-        // Add Hybrid Rice Seed (Single)
+        items[PREMIUM_SEED_SINGLE_ID].growthBonusBP = 30;
+        items[PREMIUM_SEED_SINGLE_ID].yieldBonusBP = 30;
+
+        // Update Hybrid Rice Seed (Single)
         items[HYBRID_SEED_SINGLE_ID] = Item({
             id: HYBRID_SEED_SINGLE_ID,
             name: "Hybrid Rice Seed (Single)",
             itemType: 0,
             priceETH: 1000000000000000, // 0.0010 ETH
             paymentToken: address(0),
-            baseReward: 400,
-            baseGrowthTime: 300, // 5 minutes for testing
-            growthBonusBP: 70,
-            yieldBonusBP: 70,
+            baseReward: 70,
+            baseGrowthTime: 300, // 5 minutes
+            growthBonusBP: 0,
+            yieldBonusBP: 0,
             active: true,
             maxSupply: 2000,
             supply: 2000
         });
-        // Add Hybrid Rice Seed (Bundle)
+        // Update Hybrid Rice Seed (Bundle)
         bundles[15] = Bundle({
             id: 15,
             name: "Hybrid Rice Seed (Bundle)",
@@ -205,6 +221,10 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;
+        items[HYBRID_SEED_SINGLE_ID].baseReward = 85;
+        items[HYBRID_SEED_SINGLE_ID].growthBonusBP = 70;
+        items[HYBRID_SEED_SINGLE_ID].yieldBonusBP = 70;
+
         // Golden Harvester (Single)
         items[GOLDEN_HARVESTER_SINGLE_ID] = Item({
             id: GOLDEN_HARVESTER_SINGLE_ID,
@@ -432,6 +452,10 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
             if (items[itemId].itemType == 0) {
                 userBundleSeeds[msg.sender][itemId] += itemAmount;
             }
+            // In buyBundle, for each item in the bundle:
+            if (items[itemId].itemType == 1) {
+                userToolUses[msg.sender][itemId] += 5 * itemAmount;
+            }
         }
         // Decrement bundle supply
         bundle.supply -= amount;
@@ -461,6 +485,10 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         if (item.itemType == 0) {
             userSingleSeeds[msg.sender][itemId] += amount;
         }
+        // In buyItem, when a user receives a tool, set uses to 5 per tool received
+        if (item.itemType == 1) {
+            userToolUses[msg.sender][itemId] += 5 * amount;
+        }
         // Emit event (reuse ItemPurchased for consistency)
         uint256[] memory itemIds = new uint256[](1);
         uint256[] memory amounts = new uint256[](1);
@@ -471,6 +499,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
 
     // --- Planting & Harvesting ---
     function plantSeed(uint256 plotId, uint256 seedId) external whenNotPaused nonReentrant {
+        Plot storage plot = userPlots[msg.sender][plotId];
+        require(!plot.needsFertilizer, "Apply fertilizer first");
         require(userItemBalances[msg.sender][seedId] > 0, "No seeds");
         Item storage seed = items[seedId];
         require(seed.active && seed.itemType == 0, "Invalid seed");
@@ -478,47 +508,43 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         require(seed.yieldBonusBP >= MIN_BONUS_BP && seed.yieldBonusBP <= MAX_BONUS_BP, "Yield bonus out of range");
         // Burn one use
         userItemBalances[msg.sender][seedId] -= 1;
-        // Decrement from bundle seeds first, then singles
+        uint16 growthBonusBP = 0;
+        uint16 yieldBonusBP = 0;
         if (userBundleSeeds[msg.sender][seedId] > 0) {
             userBundleSeeds[msg.sender][seedId] -= 1;
-            // Apply bundle bonus in frontend/logic
+            // Apply correct bundle bonus from docs/marketplace
+            if (seedId == 9) { growthBonusBP = 400; yieldBonusBP = 400; } // Basic Rice Seed: 40%
+            else if (seedId == 10) { growthBonusBP = 200; yieldBonusBP = 200; } // Premium Rice Seed: 20%
+            else if (seedId == 11) { growthBonusBP = 214; yieldBonusBP = 214; } // Hybrid Rice Seed: 21.43%
         } else if (userSingleSeeds[msg.sender][seedId] > 0) {
             userSingleSeeds[msg.sender][seedId] -= 1;
-            // No bundle bonus
+            // No bonus
+            growthBonusBP = 0;
+            yieldBonusBP = 0;
         } else {
             revert("No seeds available");
         }
-        // Calculate adjusted growth time
-        uint256 adjustedGrowthTime = seed.baseGrowthTime * (1000 - seed.growthBonusBP) / 1000;
-        // Set plot
+        uint256 adjustedGrowthTime = seed.baseGrowthTime * (1000 - growthBonusBP) / 1000;
         userPlots[msg.sender][plotId] = Plot({
             seedId: seedId,
             plantedAt: block.timestamp,
             readyAt: block.timestamp + adjustedGrowthTime,
-            growthBonusBP: seed.growthBonusBP,
-            yieldBonusBP: seed.yieldBonusBP,
-            growing: true
+            growthBonusBP: growthBonusBP,
+            yieldBonusBP: yieldBonusBP,
+            growing: true,
+            harvestedAt: 0,
+            needsFertilizer: false
         });
         emit SeedPlanted(msg.sender, plotId, seedId);
     }
-    function harvest(uint256 plotId) external whenNotPaused nonReentrant {
-        Plot storage plot = userPlots[msg.sender][plotId];
-        require(plot.growing, "Nothing growing");
-        require(block.timestamp >= plot.readyAt, "Not ready");
-        Item storage seed = items[plot.seedId];
-        require(seed.itemType == 0, "Not a seed");
-        require(plot.growthBonusBP >= MIN_BONUS_BP && plot.growthBonusBP <= MAX_BONUS_BP, "Growth bonus out of range");
-        require(plot.yieldBonusBP >= MIN_BONUS_BP && plot.yieldBonusBP <= MAX_BONUS_BP, "Yield bonus out of range");
-        // Calculate final yield
-        uint256 finalYield = seed.baseReward * (1000 + plot.yieldBonusBP) / 1000;
-        riceTokens[msg.sender] += finalYield;
-        plot.growing = false;
-        emit Harvested(msg.sender, plotId, finalYield);
-        totalHarvests[msg.sender] += 1;
-    }
 
     // --- Daily Rewards ---
+    function setDailyRewardPaused(bool paused) external onlyOwner {
+        dailyRewardPaused = paused;
+    }
+
     function claimDailyReward() external whenNotPaused nonReentrant {
+        require(!dailyRewardPaused, "Daily reward is paused");
         uint256 day = (userStreaks[msg.sender] % 7);
         require(block.timestamp > lastClaimedDay[msg.sender] + 1 days, "Already claimed today");
         uint256 reward = dailyRewards[day];
@@ -604,7 +630,12 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         require(plot.growing, "Nothing growing");
         require(block.timestamp >= plot.readyAt, "Not ready");
         // Burn one harvester
-        userItemBalances[msg.sender][GOLDEN_HARVESTER_SINGLE_ID] -= 1;
+        require(userToolUses[msg.sender][GOLDEN_HARVESTER_SINGLE_ID] > 0, "No harvester uses left");
+        userToolUses[msg.sender][GOLDEN_HARVESTER_SINGLE_ID] -= 1;
+        if (userToolUses[msg.sender][GOLDEN_HARVESTER_SINGLE_ID] == 0) {
+            userItemBalances[msg.sender][GOLDEN_HARVESTER_SINGLE_ID] -= 1;
+            emit ToolBurned(msg.sender, GOLDEN_HARVESTER_SINGLE_ID);
+        }
         // Calculate yield with +20% bonus
         Item storage seed = items[plot.seedId];
         uint256 baseYield = seed.baseReward * (1000 + plot.yieldBonusBP) / 1000;
@@ -612,6 +643,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         uint256 totalYield = baseYield + bonusYield;
         riceTokens[msg.sender] += totalYield;
         plot.growing = false;
+        plot.harvestedAt = block.timestamp;
+        plot.needsFertilizer = true;
         emit Harvested(msg.sender, plotId, totalYield);
         totalHarvests[msg.sender] += 1;
     }
@@ -630,6 +663,8 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
                 uint256 plotYield = baseYield + bonusYield;
                 totalYield += plotYield;
                 plot.growing = false;
+                plot.harvestedAt = block.timestamp;
+                plot.needsFertilizer = true;
                 plotsHarvested++;
                 totalHarvests[msg.sender] += 1;
                 emit Harvested(msg.sender, i, plotYield);
@@ -637,7 +672,12 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         }
         require(plotsHarvested > 0, "No plots ready");
         // Burn one harvester bundle
-        userItemBalances[msg.sender][GOLDEN_HARVESTER_BUNDLE_ID] -= 1;
+        require(userToolUses[msg.sender][GOLDEN_HARVESTER_BUNDLE_ID] > 0, "No harvester bundle uses left");
+        userToolUses[msg.sender][GOLDEN_HARVESTER_BUNDLE_ID] -= 1;
+        if (userToolUses[msg.sender][GOLDEN_HARVESTER_BUNDLE_ID] == 0) {
+            userItemBalances[msg.sender][GOLDEN_HARVESTER_BUNDLE_ID] -= 1;
+            emit ToolBurned(msg.sender, GOLDEN_HARVESTER_BUNDLE_ID);
+        }
         riceTokens[msg.sender] += totalYield;
     }
 
@@ -664,6 +704,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
     // 4. Auto-Watering System: Water all growing plots if user owns the tool
     function autoWaterCrops() external whenNotPaused nonReentrant {
         require(userItemBalances[msg.sender][AUTO_WATERING_SYSTEM_ID] > 0, "No Auto-Watering System");
+        require(userToolUses[msg.sender][AUTO_WATERING_SYSTEM_ID] > 0, "No auto-watering uses left");
         bool watered = false;
         for (uint256 i = 0; i < 16; i++) {
             Plot storage plot = userPlots[msg.sender][i];
@@ -675,6 +716,11 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
         }
         if (watered) {
             userItemBalances[msg.sender][AUTO_WATERING_SYSTEM_ID] -= 1;
+            userToolUses[msg.sender][AUTO_WATERING_SYSTEM_ID] -= 1;
+            if (userToolUses[msg.sender][AUTO_WATERING_SYSTEM_ID] == 0) {
+                userItemBalances[msg.sender][AUTO_WATERING_SYSTEM_ID] -= 1;
+                emit ToolBurned(msg.sender, AUTO_WATERING_SYSTEM_ID);
+            }
         }
     }
 
@@ -711,5 +757,22 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
                 emit PlotAutoWatered(user, i);
             }
         }
+    }
+
+    function revivePlot(uint256 plotId) external whenNotPaused nonReentrant {
+        Plot storage plot = userPlots[msg.sender][plotId];
+        require(plot.needsFertilizer, "Plot does not need fertilizer");
+        require(block.timestamp >= plot.harvestedAt + 2 minutes, "Cooldown not over"); // TEST: 2 minutes lock
+        require(userItemBalances[msg.sender][FERTILIZER_SPREADER_ID] > 0, "No fertilizer");
+        userItemBalances[msg.sender][FERTILIZER_SPREADER_ID] -= 1;
+        // Reset plot to empty state so it can be planted again
+        plot.seedId = 0;
+        plot.plantedAt = 0;
+        plot.readyAt = 0;
+        plot.growthBonusBP = 0;
+        plot.yieldBonusBP = 0;
+        plot.growing = false;
+        plot.harvestedAt = 0;
+        plot.needsFertilizer = false;
     }
 } 

@@ -36,7 +36,7 @@ export default function Profile({
   });
   React.useEffect(() => {
     if (onChainRiceTokens) {
-      setOnChainRT((Number(onChainRiceTokens) / 1e18).toLocaleString());
+      setOnChainRT(Number(onChainRiceTokens).toLocaleString());
     }
   }, [onChainRiceTokens]);
 

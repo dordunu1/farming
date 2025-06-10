@@ -1,9 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap } from 'lucide-react';
 import { useAccount, useContractWrite, useWaitForTransactionReceipt, useContractRead } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { updateAfterWater } from '../lib/firebaseUser';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -52,7 +54,21 @@ function TransactionModal({
   });
 
   const currentPlot = plots.find((p: any) => p.id === plotId);
-  const canWater = type === 'water' && currentPlot && currentPlot.waterLevel < 40;
+
+  const GOLDEN_HARVESTER_SINGLE_ID = 17;
+  const { data: harvesterUses, refetch: refetchHarvesterUses } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userToolUses',
+    args: address ? [address, GOLDEN_HARVESTER_SINGLE_ID] : undefined,
+  });
+
+  const { data: onChainRiceTokens } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'riceTokens',
+    args: address ? [address] : undefined,
+  });
 
   React.useEffect(() => {
     if (type === 'water' && isWaterSuccess && address && plotId && waterTxHash && !hasUpdatedRef.current) {
@@ -74,7 +90,31 @@ function TransactionModal({
         }, 2000);
       });
     }
-  }, [type, isWaterSuccess, address, plotId, waterTxHash, onClose, energy, setPlots]);
+    // Add Firestore riceTokens update for harvest
+    if (type === 'harvest' && transactionStatus === 'success' && address && plotId && currentPlot) {
+      (async () => {
+        // Update Firestore as before
+        const userRef = doc(db, 'users', address);
+        const userSnap = await getDoc(userRef);
+        let prevTokens = 0;
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          prevTokens = Number(userData.riceTokens) || 0;
+        }
+        const newTokens = prevTokens + (currentPlot.expectedYield || 0);
+        await setDoc(userRef, { riceTokens: newTokens }, { merge: true });
+        // Fetch on-chain RT and update UI
+        if (onChainRiceTokens !== undefined) {
+          setRiceTokens(Number(onChainRiceTokens));
+        }
+        // Close modal after short delay
+        setTimeout(() => {
+          onClose();
+          setTransactionStatus('idle');
+        }, 1500);
+      })();
+    }
+  }, [type, isWaterSuccess, address, plotId, waterTxHash, onClose, energy, setPlots, transactionStatus, currentPlot, onChainRiceTokens]);
 
   React.useEffect(() => {
     if (fetchedPlot) setOnChainPlot(fetchedPlot);
@@ -84,6 +124,23 @@ function TransactionModal({
   React.useEffect(() => {
     hasUpdatedRef.current = false;
   }, [waterTxHash]);
+
+  React.useEffect(() => {
+    if (transactionStatus === 'success' && type === 'harvest') {
+      refetchHarvesterUses && refetchHarvesterUses();
+    }
+  }, [transactionStatus, type, refetchHarvesterUses]);
+
+  // Add this effect to close the modal after a successful harvest
+  useEffect(() => {
+    if (type === 'harvest' && isWaterSuccess && transactionStatus === 'pending') {
+      setTransactionStatus('success');
+      setTimeout(() => {
+        onClose();
+        setTransactionStatus('idle');
+      }, 1500);
+    }
+  }, [type, isWaterSuccess, transactionStatus, onClose]);
 
   if (!isOpen) return null;
 
@@ -109,17 +166,37 @@ function TransactionModal({
     } else if (type === 'harvest') {
       if (typeof plotId === 'number') {
         setTransactionStatus('pending');
-        console.log('Calling harvest with:', { plotId, address });
+        console.log('Calling harvestWithGoldenHarvester with:', { plotId, address });
         writeContract({
           address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
           abi: RiseFarmingABI as any,
-          functionName: 'harvest',
+          functionName: 'harvestWithGoldenHarvester',
           args: [plotId],
           account: address,
         });
       }
     }
   };
+
+  // Map seedId to baseReward (update as needed, include bundles)
+  const seedBaseRewards: Record<number, number> = {
+    9: 15,   // Basic Rice Seed (Single)
+    10: 50,  // Premium Rice Seed (Single)
+    11: 70,  // Hybrid Rice Seed (Single)
+    13: 21,  // Basic Rice Seed (Bundle)
+    14: 60,  // Premium Rice Seed (Bundle)
+    15: 85,  // Hybrid Rice Seed (Bundle)
+    // Add more as needed
+  };
+
+  let yieldRT = 0;
+  if (Array.isArray(fetchedPlot)) {
+    const seedId = Number(fetchedPlot[0]);
+    const yieldBonusBP = Number(fetchedPlot[4]);
+    const baseReward = seedBaseRewards[seedId] || 0;
+    yieldRT = Math.floor(baseReward * (1000 + yieldBonusBP) / 1000);
+    console.log('DEBUG yield calculation:', { seedId, yieldBonusBP, baseReward, yieldRT, fetchedPlot });
+  }
 
   const getActionData = () => {
     if (type === 'water') {
@@ -136,7 +213,7 @@ function TransactionModal({
         description: 'Harvest your fully grown rice and earn tokens',
         icon: <Scissors className="w-8 h-8 text-yellow-500" />,
         cost: '15 Energy',
-        benefit: `Earn ${currentPlot?.expectedYield || 150} Rice Tokens`
+        benefit: `Earn ${yieldRT} Rice Tokens`
       };
     }
   };
@@ -164,6 +241,11 @@ function TransactionModal({
     now > readyAt &&
     cooldownPassed;
 
+  // Guard: if the plot is truly empty, do not render this modal (let PlantModal handle it)
+  if (currentPlot && currentPlot.status === 'empty' && !currentPlot.cropType && currentPlot.waterLevel === 0 && !currentPlot.needsFertilizer) {
+    return null;
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4 pt-16">
       <motion.div 
@@ -182,7 +264,7 @@ function TransactionModal({
           </button>
         </div>
 
-        {(transactionStatus === 'idle' || (type === 'water' && transactionStatus === 'pending')) && (
+        {(transactionStatus === 'idle' || (type === 'water' && transactionStatus === 'pending') || (type === 'harvest' && transactionStatus === 'pending')) && (
           <div className="space-y-6">
             <div className="text-center">
               <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -282,6 +364,7 @@ function TransactionModal({
               <button
                 onClick={onClose}
                 className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                disabled={transactionStatus === 'pending'}
               >
                 Cancel
               </button>
@@ -298,8 +381,8 @@ function TransactionModal({
                   onClick={handleTransaction}
                   disabled={
                     type === 'harvest'
-                      ? (!canHarvestOnChain || energy < 15 || transactionStatus === 'pending' || (growing === false && cooldownPassed))
-                      : (energy < 5 || (type === 'water' && String(transactionStatus) === 'pending') || (type === 'water' && waterCans <= 0) || !canWater)
+                      ? (!canHarvestOnChain || energy < 15 || transactionStatus === 'pending' || (growing === false && cooldownPassed) || !harvesterUses || Number(harvesterUses) <= 0)
+                      : (energy < 5 || (type === 'water' && String(transactionStatus) === 'pending') || (type === 'water' && waterCans <= 0))
                   }
                   className={`flex-1 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     type === 'water'
@@ -326,6 +409,14 @@ function TransactionModal({
               <div className="mt-2 text-xs text-yellow-600 text-center">
                 Please wait 1 minute after crop is ready before harvesting (syncing on-chain).
               </div>
+            )}
+
+            {type === 'harvest' && (
+              <div className="text-xs text-yellow-700 mt-2">Golden Harvester uses left: {Number(harvesterUses) || 0}</div>
+            )}
+
+            {type === 'harvest' && (!harvesterUses || Number(harvesterUses) <= 0) && (
+              <div className="mt-2 text-xs text-red-600 text-center">You need a Golden Harvester with uses left to harvest.</div>
             )}
           </div>
         )}

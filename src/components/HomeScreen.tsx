@@ -109,13 +109,7 @@ function HomeScreen({
 
   // Listen for real-time plot updates
   useEffect(() => {
-    if (!address) return;
-    const unsub = onUserDataSnapshot(address, (user) => {
-      if (user && Array.isArray(user.plots)) {
-        setPlots(user.plots);
-      }
-    });
-    return () => unsub && unsub();
+    // Removed Firestore plot syncing to prevent overwriting on-chain state
   }, [address]);
 
   // Real-time recent activity
@@ -302,18 +296,6 @@ function HomeScreen({
     args: address ? [address] : undefined,
   });
 
-  // Sync on-chain RT to Firestore
-  useEffect(() => {
-    if (address && onChainRiceTokens !== undefined) {
-      const riceTokensNum = Number(onChainRiceTokens) / 1e18;
-      getUserData(address).then(user => {
-        if (!user || user.riceTokens !== riceTokensNum) {
-          setDoc(doc(db, 'users', address), { riceTokens: riceTokensNum }, { merge: true });
-        }
-      });
-    }
-  }, [address, onChainRiceTokens]);
-
   useEffect(() => {
     if (address) {
       // Removed Firebase Auth UID console logging for production cleanliness
@@ -337,11 +319,10 @@ function HomeScreen({
     function isHarvestActivity(a: any): a is { type: string; amount: number } {
       return a && typeof a === 'object' && a.type === 'harvest' && typeof a.amount === 'number';
     }
-    const total = recentActivity
-      .filter(isHarvestActivity)
-      .reduce((sum, a) => sum + (a as any).amount, 0);
-    setFarmValue(total);
-  }, [recentActivity]);
+    const plantedPlots = plots.filter(p => ('seedId' in p ? (p as any).seedId !== 0 : p.cropType && p.cropType !== ''));
+    const totalYield = plantedPlots.reduce((sum, p) => sum + (p.expectedYield || 0), 0);
+    setFarmValue(totalYield);
+  }, [plots]);
 
   // --- Fetch playerLevel and totalXP from Firestore and update top bar ---
   useEffect(() => {
@@ -374,7 +355,7 @@ function HomeScreen({
               {address ? (
                 <div className="flex items-center">
                   <p className="text-3xl font-bold">
-                    {onChainRiceTokens ? (Number(onChainRiceTokens) / 1e18).toLocaleString() : '--'}
+                    {onChainRiceTokens ? Number(onChainRiceTokens).toLocaleString() : '--'}
                   </p>
                   <div className="ml-2 group relative">
                     <Info className="w-5 h-5 text-emerald-200 cursor-pointer" />
@@ -601,8 +582,8 @@ function HomeScreen({
           <div className="flex items-center gap-4">
             {/* Farm Value Calculation */}
             {(() => {
-              const nonEmptyPlots = plots.filter(p => p.status !== 'empty');
-              const totalYield = nonEmptyPlots.reduce((sum, p) => sum + (p.expectedYield || 0), 0);
+              const plantedPlots = plots.filter(p => ('seedId' in p ? (p as any).seedId !== 0 : p.cropType && p.cropType !== ''));
+              const totalYield = plantedPlots.reduce((sum, p) => sum + (p.expectedYield || 0), 0);
               const bestSeed = marketItems
                 .filter(item => item.category === 'seeds' && typeof item.riseReward === 'number')
                 .reduce((max, item) => (item.riseReward! > (max?.riseReward || 0) ? item : max), null as null | typeof marketItems[0]);

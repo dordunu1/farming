@@ -400,6 +400,50 @@
         "internalType": "uint256",
         "name": "toolId",
         "type": "uint256"
+      }
+    ],
+    "name": "ToolBurned",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "toolId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "usesLeft",
+        "type": "uint256"
+      }
+    ],
+    "name": "ToolUseDecremented",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "toolId",
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -958,6 +1002,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "dailyRewardPaused",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -1091,6 +1148,16 @@
             "internalType": "bool",
             "name": "growing",
             "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "harvestedAt",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "needsFertilizer",
+            "type": "bool"
           }
         ],
         "internalType": "struct RiseFarming.Plot[]",
@@ -1099,19 +1166,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "plotId",
-        "type": "uint256"
-      }
-    ],
-    "name": "harvest",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1358,6 +1412,19 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "plotId",
+        "type": "uint256"
+      }
+    ],
+    "name": "revivePlot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "",
         "type": "address"
@@ -1385,6 +1452,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "paused",
+        "type": "bool"
+      }
+    ],
+    "name": "setDailyRewardPaused",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -1765,6 +1845,16 @@
         "internalType": "bool",
         "name": "growing",
         "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "harvestedAt",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "needsFertilizer",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -1803,6 +1893,30 @@
       }
     ],
     "name": "userStreaks",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "userToolUses",
     "outputs": [
       {
         "internalType": "uint256",

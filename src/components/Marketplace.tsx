@@ -6,6 +6,7 @@ import RiseFarmingABI from '../abi/RiseFarming.json';
 import { addRecentActivity } from '../lib/firebaseUser';
 const RISE_FARMING_ADDRESS = import.meta.env.VITE_RISE_FARMING_ADDRESS as `0x${string}`;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`;
+const DURABLE_TOOL_IDS = [17, 18, 6]; // Golden Harvester (Single), Bundle, Auto-Watering System
 
 interface MarketplaceProps {
   isWalletConnected: boolean;
@@ -58,29 +59,29 @@ const marketItems: MarketItem[] = [
   {
     id: 13, // Basic Rice Seed (Bundle)
     name: 'Basic Rice Seed (Bundle)',
-    description: 'Bundle of basic rice seeds with bonus yield',
-    usdPrice: 1.5, // Discounted price
+    description: 'Bundle of basic rice seeds with a 40% bonus yield and growth',
+    usdPrice: 4.5,
     currency: 'ETH',
     category: 'bundle',
     rarity: 'common',
     icon: <span className="text-xl">🌾</span>,
     level: 1,
-    benefits: ['5x Basic Seeds (1.5% bonus)'],
-    riseReward: 15,
-    details: `Growth time: 8h (reduced by 1.5%)\nYield: 15 RT per seed (increased by 1.5%)\nBundle bonus: +1.5% growth and yield.`,
+    benefits: ['+40% yield and growth'],
+    riseReward: 21,
+    details: `Growth time: 4.8h (reduced by 40%)\nYield: 21 RT (increased by 40%)`,
     supply: 0
   },
   {
     id: 10, // Premium Rice Seed (Single)
     name: 'Premium Rice Seed (Single)',
     description: 'A single premium rice seed with higher yield',
-    usdPrice: 1.5,
+    usdPrice: 3,
     currency: 'ETH',
     category: 'seeds',
     rarity: 'rare',
     icon: <span className="text-xl">🌾</span>,
     level: 2,
-    benefits: ['+3% growth speed', '+3% harvest yield'],
+    benefits: ['Faster growth', 'Higher yield'],
     riseReward: 50,
     details: `Growth time: 6h\nYield: 50 RT\nNo bundle bonus.`,
     supply: 0
@@ -88,29 +89,29 @@ const marketItems: MarketItem[] = [
   {
     id: 14, // Premium Rice Seed (Bundle)
     name: 'Premium Rice Seed (Bundle)',
-    description: 'Bundle of premium rice seeds with bonus yield',
-    usdPrice: 2.5, // Discounted price
+    description: 'Bundle of premium rice seeds with a 20% bonus yield and growth',
+    usdPrice: 5.5,
     currency: 'ETH',
     category: 'bundle',
     rarity: 'rare',
     icon: <span className="text-xl">🌾</span>,
     level: 2,
-    benefits: ['2x Premium Seeds (3% bonus)'],
-    riseReward: 50,
-    details: `Growth time: 6h (reduced by 3%)\nYield: 50 RT per seed (increased by 3%)\nBundle bonus: +3% growth and yield.`,
+    benefits: ['+20% yield and growth'],
+    riseReward: 60,
+    details: `Growth time: 4.8h (reduced by 20%)\nYield: 60 RT (increased by 20%)`,
     supply: 0
   },
   {
     id: 11, // Hybrid Rice Seed (Single)
     name: 'Hybrid Rice Seed (Single)',
     description: 'A single hybrid rice seed with unique properties',
-    usdPrice: 2.5,
+    usdPrice: 5,
     currency: 'ETH',
     category: 'seeds',
     rarity: 'legendary',
     icon: <span className="text-xl">🌾</span>,
     level: 3,
-    benefits: ['+7% yield', 'Rare drop chance'],
+    benefits: ['Unique properties', 'Legendary yield'],
     riseReward: 70,
     details: `Growth time: 4h\nYield: 70 RT\nNo bundle bonus.`,
     supply: 0
@@ -118,16 +119,16 @@ const marketItems: MarketItem[] = [
   {
     id: 15, // Hybrid Rice Seed (Bundle)
     name: 'Hybrid Rice Seed (Bundle)',
-    description: 'Bundle of hybrid rice seeds with max bonus',
-    usdPrice: 3.5, // Discounted price
+    description: 'Bundle of hybrid rice seeds with a 21.43% bonus yield and growth',
+    usdPrice: 9,
     currency: 'ETH',
     category: 'bundle',
     rarity: 'legendary',
     icon: <span className="text-xl">🌾</span>,
     level: 3,
-    benefits: ['2x Hybrid Seeds (7% bonus)'],
-    riseReward: 70,
-    details: `Growth time: 4h (reduced by 7%)\nYield: 70 RT per seed (increased by 7%)\nBundle bonus: +7% growth and yield.`,
+    benefits: ['+21.43% yield and growth'],
+    riseReward: 84,
+    details: `Growth time: 3.14h (reduced by 21.43%)\nYield: 84 RT (increased by 21.43%)`,
     supply: 0
   },
   {
@@ -175,15 +176,15 @@ const marketItems: MarketItem[] = [
   {
     id: 12, // Fertilizer Spreader
     name: 'Fertilizer Spreader',
-    description: 'Applies fertilizer to boost growth',
+    description: 'Required to revive a harvested plot after cooldown. Not used for boosting growth or yield.',
     usdPrice: 50,
     currency: 'RT',
     category: 'tools',
     rarity: 'rare',
     icon: <Zap className="w-6 h-6 text-green-500" />,
     level: 3,
-    benefits: ['+25% growth speed', '+15% yield'],
-    details: 'Fertilizer Spreader: Applies fertilizer to all plots, boosting growth speed by 25% and yield by 15% for the next crop cycle.',
+    benefits: ['Revives harvested plots after cooldown'],
+    details: 'Fertilizer Spreader: Use this to unlock a harvested plot for planting after the cooldown period. It does not boost growth speed or yield.',
     supply: 0
   },
   {
@@ -309,6 +310,26 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     if (bundle) {
       bundleDataMap.set(id, bundle);
     }
+  });
+
+  // Fetch tool uses for the connected user
+  const { data: toolUsesSingle } = useContractRead({
+    address: RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userToolUses',
+    args: address ? [address, 17] : undefined,
+  });
+  const { data: toolUsesBundle } = useContractRead({
+    address: RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userToolUses',
+    args: address ? [address, 18] : undefined,
+  });
+  const { data: toolUsesAuto } = useContractRead({
+    address: RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userToolUses',
+    args: address ? [address, 6] : undefined,
   });
 
   useEffect(() => {
@@ -668,6 +689,9 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                   <div className="absolute z-50 top-2 left-1/2 -translate-x-1/2 w-72 bg-white border border-gray-300 rounded-xl shadow-xl p-4 text-xs text-gray-700">
                     <strong>Details:</strong>
                     <div className="mt-1 whitespace-pre-line">{item.details}</div>
+                    {DURABLE_TOOL_IDS.includes(item.id) && address && (
+                      <div className="text-xs text-yellow-700 mt-1">Uses left: {item.id === 17 ? Number(toolUsesSingle) : item.id === 18 ? Number(toolUsesBundle) : Number(toolUsesAuto)}</div>
+                    )}
                   </div>
                 )}
               </div>
