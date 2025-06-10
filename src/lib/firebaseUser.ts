@@ -430,4 +430,47 @@ export function getActivityIcon(type: string, itemName?: string): string {
     case 'error': return '⚠️';
     default: return '📝';
   }
+}
+
+export async function updateAfterHarvest(walletAddress: string, plotId: number, txHash: string, yieldAmount: number) {
+  const userRef = doc(db, 'users', walletAddress);
+  const userSnap = await getDoc(userRef);
+  if (!userSnap.exists()) return;
+  const userData = userSnap.data();
+  const plots = userData.plots || [];
+  let recentActivity = userData.recentActivity || [];
+
+  // Prevent duplicate activity for the same txHash
+  if (!recentActivity.length || recentActivity[0].txHash !== txHash) {
+    recentActivity = [
+      {
+        icon: '✂️',
+        action: `Harvested Plot #${plotId}`,
+        time: new Date().toISOString(),
+        reward: `+${yieldAmount} RT`,
+        color: 'yellow',
+        txHash,
+      },
+      ...recentActivity,
+    ].slice(0, 20);
+  }
+
+  // Update the correct plot to locked state
+  const now = Math.floor(Date.now() / 1000);
+  const updatedPlots = plots.map((plot: any) =>
+    plot.id === plotId
+      ? {
+          ...plot,
+          needsFertilizer: true,
+          harvestedAt: now,
+          state: 4, // Locked
+          status: 'withering',
+        }
+      : plot
+  );
+
+  await setDoc(userRef, {
+    plots: updatedPlots,
+    recentActivity,
+  }, { merge: true });
 } 

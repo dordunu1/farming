@@ -191,9 +191,14 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
           cropType = seedNames[p[0]] || `Seed #${p[0]}`;
         }
         let expectedYield = 0;
-        if (p[0] === 9) expectedYield = 15;
-        else if (p[0] === 10) expectedYield = 50;
-        else if (p[0] === 11) expectedYield = 70;
+        // Map all known seed IDs to their correct yields (from contract and marketplace)
+        if (p[0] === 9) expectedYield = 15; // Basic Rice Seed (Single)
+        else if (p[0] === 10) expectedYield = 50; // Premium Rice Seed (Single)
+        else if (p[0] === 11) expectedYield = 70; // Hybrid Rice Seed (Single)
+        else if (p[0] === 13) expectedYield = 21; // Basic Rice Seed (Bundle)
+        else if (p[0] === 14) expectedYield = 60; // Premium Rice Seed (Bundle)
+        else if (p[0] === 15) expectedYield = 84; // Hybrid Rice Seed (Bundle, updated to 84 RT)
+        // Apply yield bonus if present
         if (p[0] !== 0 && p[4] > 0) {
           expectedYield = Math.round(expectedYield * (1 + Number(p[4]) / 1000));
         }
