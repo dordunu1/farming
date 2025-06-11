@@ -5,9 +5,8 @@ import FarmGrid from './FarmGrid';
 import DailyRewardModal from './DailyRewardModal';
 import AchievementModal from './AchievementModal';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, useContractReads } from 'wagmi';
-import { getUserData, incrementFreeEnergy, onUserDataSnapshot, onRecentActivitySnapshot, Activity, Plot, resetDailyQuestsIfNeeded, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { getUserData, onUserDataSnapshot, onRecentActivitySnapshot, Activity, Plot, resetDailyQuestsIfNeeded, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
+
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import type { Abi } from 'viem';
 import { getAuth, signOut } from 'firebase/auth';
