@@ -38,8 +38,8 @@ function App() {
   // Set riceTokens to 0 for now if connected
   const riceTokens = isConnected ? 0 : 0;
 
-  const currentLevelXP = totalXP % 1000;
-  const xpProgress = (currentLevelXP / 1000) * 100;
+  const currentLevelXP = totalXP % 300;
+  const xpProgress = (currentLevelXP / 300) * 100;
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -237,7 +237,7 @@ function App() {
             <div className="hidden md:flex items-center space-x-3">
               <div className="text-right">
                 <div className="text-sm font-bold text-gray-800">Level {playerLevel}</div>
-                <div className="text-xs text-gray-500">{currentLevelXP}/1000 XP</div>
+                <div className="text-xs text-gray-500">{currentLevelXP}/300 XP</div>
               </div>
               <div className="w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
                 <motion.div 

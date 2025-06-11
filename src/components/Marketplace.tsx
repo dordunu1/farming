@@ -3,7 +3,9 @@ import { Search, Zap, Droplets, Scissors, TrendingUp, Box, Info } from 'lucide-r
 import { useContractReads, useContractWrite, useWaitForTransactionReceipt, useAccount, useContractRead } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import RiseFarmingABI from '../abi/RiseFarming.json';
-import { addRecentActivity, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
+import { addRecentActivity, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, getUserData, levelThresholds } from '../lib/firebaseUser';
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 const RISE_FARMING_ADDRESS = import.meta.env.VITE_RISE_FARMING_ADDRESS as `0x${string}`;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`;
 const DURABLE_TOOL_IDS = [17, 18, 6]; // Golden Harvester (Single), Bundle, Auto-Watering System
@@ -308,6 +310,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const { openConnectModal } = useConnectModal();
   const [showDetailsIdx, setShowDetailsIdx] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [processedTxs, setProcessedTxs] = useState<Set<string>>(new Set());
 
   const itemIds = marketItems.map(item => item.id);
   const bundleIds = marketItems.filter(item => item.category === 'bundle').map(item => item.id);
@@ -448,7 +451,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
 
   // Place the activity logging useEffect here, after all hooks and state
   useEffect(() => {
-    if (txSuccess && selectedItem && address && onChainRiceTokens !== undefined && onChainXP !== undefined) {
+    if (txSuccess && selectedItem && address && txHash && !processedTxs.has(txHash)) {
       // Determine icon using getActivityIcon
       const icon = getActivityIcon('buy', selectedItem.name);
       // Calculate reward string
@@ -480,19 +483,30 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         color: 'blue',
         txHash: txHash || undefined,
       });
-      logAndSyncUserActivity(address, {
-        icon,
-        action: `Bought ${quantity}x ${selectedItem.name}`,
-        time: new Date().toISOString(),
-        reward,
-        color: 'blue',
-        txHash: txHash || undefined,
-      }, {
-        riceTokens: Number(onChainRiceTokens),
-        totalXP: Number(onChainXP),
+      // XP logic
+      getUserData(address).then(user => {
+        if (!user) return;
+        let newXP = (user.totalXP || 0) + quantity;
+        if (newXP > 300) newXP = 300;
+        let newLevel = user.playerLevel || 1;
+        while (newLevel < levelThresholds.length && newXP >= levelThresholds[newLevel]) {
+          newLevel++;
+        }
+        if (newLevel > 7) newLevel = 7;
+        setDoc(doc(db, 'users', address), {
+          totalXP: newXP,
+          playerLevel: newLevel,
+        }, { merge: true });
       });
+      // Mark this txHash as processed
+      setProcessedTxs(prev => new Set(prev).add(txHash));
+      // Clear txHash and selectedItem after processing to prevent re-processing
+      setTimeout(() => {
+        setTxHash(null);
+        setSelectedItem(null);
+      }, 500);
     }
-  }, [txSuccess, selectedItem, address, txHash, quantity, itemsRaw, bundleDataMap, onChainRiceTokens, onChainXP]);
+  }, [txSuccess, selectedItem, address, txHash, quantity, itemsRaw, bundleDataMap, processedTxs]);
 
   // Close buy modal and reset state if wallet disconnects while modal is open
   useEffect(() => {

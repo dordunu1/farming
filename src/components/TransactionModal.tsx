@@ -175,8 +175,10 @@ function TransactionModal({
                 ? { ...plot, state, needsFertilizer, harvestedAt, status: state === 4 ? 'withering' : plot.status }
                 : plot
             );
-            await setDoc(userRef, { plots: updatedPlots }, { merge: true });
-            console.log('Firestore updated after harvest:', { plotId, state, needsFertilizer, harvestedAt });
+            // Count harvested plots
+            const harvestedCount = updatedPlots.filter((p: any) => p.status === 'empty' && p.cropType !== '').length;
+            await setDoc(userRef, { plots: updatedPlots, numHarvested: harvestedCount }, { merge: true });
+            console.log('Firestore updated after harvest:', { plotId, state, needsFertilizer, harvestedAt, numHarvested: harvestedCount });
           }
         })();
       }, 1000);

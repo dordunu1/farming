@@ -638,7 +638,7 @@ contract RiseFarming is Ownable, Pausable, ReentrancyGuard {
     }
     function claimRiseTokens() external nonReentrant {
         uint256 amount = riceTokens[msg.sender];
-        require(amount >= 20 ether, "Must claim at least 20 RISE");
+        require(amount >= 500, "Must claim at least 500 RISE");
         riceTokens[msg.sender] = 0;
         require(riseToken.transfer(msg.sender, amount), "Transfer failed");
         emit RiseClaimed(msg.sender, amount);

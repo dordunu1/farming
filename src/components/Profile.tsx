@@ -5,6 +5,8 @@ import { useAccount, useWriteContract } from 'wagmi';
 // @ts-ignore
 import { useContractRead } from 'wagmi';
 import { getUserData } from '../lib/firebaseUser';
+import { db } from '../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 
 interface ProfileProps {
   isWalletConnected: boolean;
@@ -63,6 +65,17 @@ export default function Profile({
     setQuestValue(quest);
   }, [userStats]);
 
+  // Fetch on-chain numHarvested (totalHarvests)
+  const { data: onChainNumHarvested } = useContractRead({
+    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    abi: RiseFarmingABI,
+    functionName: 'totalHarvests',
+    args: address ? [address] : undefined,
+  });
+
+  // Use on-chain value for display
+  const harvestedCount = Number(onChainNumHarvested || 0);
+
   // Fallback for planted seeds
   let plantedCount = userStats?.numPlanted;
   if ((!plantedCount || plantedCount === 0) && userStats?.plots) {
@@ -73,14 +86,9 @@ export default function Profile({
   if ((!wateredCount || wateredCount === 0) && userStats?.plots) {
     wateredCount = userStats.plots.filter((p: any) => p.waterLevel > 0).length;
   }
-  // Use numHarvested from Firestore if available
-  let harvestedCount = userStats?.numHarvested;
-  if ((!harvestedCount || harvestedCount === 0) && userStats?.plots) {
-    harvestedCount = userStats.plots.filter((p: any) => p.status === 'empty' && p.cropType !== '').length;
-  }
 
-  // Parse RT as integer
-  const rtInt = onChainRiceTokens ? Number(onChainRiceTokens) : 0;
+  // Calculate integer RT for claim logic
+  const rtInt = Number(onChainRiceTokens || 0);
 
   if (!isWalletConnected || !address) {
     return (
@@ -110,9 +118,10 @@ export default function Profile({
     );
   }
 
-  const xpForNextLevel = userStats.playerLevel * 1000;
-  const currentLevelXP = userStats.totalXP % 1000;
-  const progressPercentage = (currentLevelXP / 1000) * 100;
+  // Use 300 as the XP cap for progress bar and next level
+  const xpForNextLevel = 300;
+  const currentLevelXP = userStats.totalXP;
+  const progressPercentage = (currentLevelXP / 300) * 100;
 
   return (
     <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 max-w-md mx-auto border border-gray-100 relative" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.10)' }}>
@@ -151,7 +160,7 @@ export default function Profile({
             />
           </div>
           <p className="text-xs text-gray-500 mt-1 text-right">
-            {currentLevelXP}/1000 XP to next level
+            {currentLevelXP}/300 XP to next level
           </p>
         </div>
         {/* Rice Tokens Section */}
@@ -169,7 +178,7 @@ export default function Profile({
             <span className="text-2xl font-bold text-yellow-600 drop-shadow-sm">{onChainRT ?? '...'}</span>
           </div>
           {/* Claim RISE button logic */}
-          {rtInt >= 20 ? (
+          {rtInt >= 500 ? (
             <button
               className="mt-3 w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 rounded-lg font-semibold hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow"
               onClick={() => claimRiseTokens.writeContract({
@@ -182,7 +191,7 @@ export default function Profile({
             </button>
           ) : (
             <div className="mt-3 w-full text-center text-xs text-gray-500 bg-yellow-100/80 rounded-lg py-2">
-              You need at least 20 RT to claim RISE tokens.
+              You need at least 500 RT to claim RISE tokens.
             </div>
           )}
         </div>

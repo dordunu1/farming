@@ -2,7 +2,7 @@ const hre = require("hardhat");
 
 async function main() {
   // Hardcoded deployed contract address
-  const contractAddress = "0xFdC8c15d0DAaC11B726b3a4628457C7eC99a6f41";
+  const contractAddress = "0x80f976b77CF2EBF248292bD7C874F963B95E932c";
   // The constructor argument is the deployer's address (used for Ownable)
   const [deployer] = await hre.ethers.getSigners();
   await hre.run("verify:verify", {

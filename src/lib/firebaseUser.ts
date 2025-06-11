@@ -87,7 +87,7 @@ export interface UserData {
 }
 
 // XP thresholds for each level (index = level)
-export const levelThresholds = [0, 100, 250, 350, 500, 700, 950, 1250, 1600, 2000];
+export const levelThresholds = [0, 20, 80, 120, 180, 220, 300];
 
 // Increment action counters and XP, and level up if needed
 export async function incrementUserAction(walletAddress: string, action: 'plant' | 'water' | 'harvest', xpGained: number) {
@@ -99,14 +99,16 @@ export async function incrementUserAction(walletAddress: string, action: 'plant'
   if (action === 'plant') updates.numPlanted = (user.numPlanted || 0) + 1;
   if (action === 'water') updates.numWatered = (user.numWatered || 0) + 1;
   if (action === 'harvest') updates.numHarvested = (user.numHarvested || 0) + 1;
-  // Add XP
-  const newXP = (user.totalXP || 0) + xpGained;
+  // Add XP, cap at 300
+  let newXP = (user.totalXP || 0) + xpGained;
+  if (newXP > 300) newXP = 300;
   updates.totalXP = newXP;
-  // Level up if threshold reached
+  // Level up if threshold reached, max level 7
   let newLevel = user.playerLevel || 1;
   while (newLevel < levelThresholds.length && newXP >= levelThresholds[newLevel]) {
     newLevel++;
   }
+  if (newLevel > 7) newLevel = 7;
   if (newLevel > user.playerLevel) {
     updates.playerLevel = newLevel;
   }
@@ -207,6 +209,15 @@ export async function updateAfterPlant(walletAddress: string, plotId: number, cr
   const numPlanted = (userData.numPlanted || 0) + 1;
   let recentActivity = userData.recentActivity || [];
 
+  // XP logic
+  let newXP = (userData.totalXP || 0) + 1;
+  if (newXP > 300) newXP = 300;
+  let newLevel = userData.playerLevel || 1;
+  while (newLevel < levelThresholds.length && newXP >= levelThresholds[newLevel]) {
+    newLevel++;
+  }
+  if (newLevel > 7) newLevel = 7;
+
   // Prevent duplicate activity for the same txHash
   if (!recentActivity.length || recentActivity[0].txHash !== txHash) {
     recentActivity = [
@@ -243,11 +254,11 @@ export async function updateAfterPlant(walletAddress: string, plotId: number, cr
         }
       : plot
   );
-  console.log('updateAfterPlant: updatedPlots', updatedPlots);
-
   await setDoc(userRef, {
     plots: updatedPlots,
     numPlanted,
+    totalXP: newXP,
+    playerLevel: newLevel,
     recentActivity,
   }, { merge: true });
 }
@@ -261,6 +272,15 @@ export async function updateAfterWater(walletAddress: string, plotId: number, tx
   const plots = userData.plots || [];
   const numWatered = (userData.numWatered || 0) + 1;
   let recentActivity = userData.recentActivity || [];
+
+  // XP logic
+  let newXP = (userData.totalXP || 0) + 1;
+  if (newXP > 300) newXP = 300;
+  let newLevel = userData.playerLevel || 1;
+  while (newLevel < levelThresholds.length && newXP >= levelThresholds[newLevel]) {
+    newLevel++;
+  }
+  if (newLevel > 7) newLevel = 7;
 
   // Prevent duplicate activity for the same txHash
   if (!recentActivity.length || recentActivity[0].txHash !== txHash) {
@@ -296,10 +316,11 @@ export async function updateAfterWater(walletAddress: string, plotId: number, tx
     }
     return plot;
   });
-
   await setDoc(userRef, {
     plots: updatedPlots,
     numWatered,
+    totalXP: newXP,
+    playerLevel: newLevel,
     recentActivity,
   }, { merge: true });
 }
@@ -439,6 +460,15 @@ export async function updateAfterHarvest(walletAddress: string, plotId: number, 
   const plots = userData.plots || [];
   let recentActivity = userData.recentActivity || [];
 
+  // XP logic
+  let newXP = (userData.totalXP || 0) + 1;
+  if (newXP > 300) newXP = 300;
+  let newLevel = userData.playerLevel || 1;
+  while (newLevel < levelThresholds.length && newXP >= levelThresholds[newLevel]) {
+    newLevel++;
+  }
+  if (newLevel > 7) newLevel = 7;
+
   // Prevent duplicate activity for the same txHash
   if (!recentActivity.length || recentActivity[0].txHash !== txHash) {
     recentActivity = [
@@ -467,9 +497,10 @@ export async function updateAfterHarvest(walletAddress: string, plotId: number, 
         }
       : plot
   );
-
   await setDoc(userRef, {
     plots: updatedPlots,
+    totalXP: newXP,
+    playerLevel: newLevel,
     recentActivity,
   }, { merge: true });
 }
