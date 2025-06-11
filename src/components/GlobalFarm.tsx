@@ -15,6 +15,7 @@ interface Plot {
   timeRemaining?: number;
   plantedAt?: number;
   readyAt?: number;
+  harvestedAt?: number;
 }
 
 interface UserFarm {
@@ -93,6 +94,38 @@ export default function GlobalFarm() {
       default: return 'text-gray-600';
     }
   };
+
+  // Add LockedOverlay for cooldown/locked state
+  function LockedOverlay({ harvestedAt }: { harvestedAt: number }) {
+    const [countdown, setCountdown] = useState(0);
+    useEffect(() => {
+      if (harvestedAt) {
+        const interval = setInterval(() => {
+          const nowSec = Math.floor(Date.now() / 1000);
+          const unlockSec = harvestedAt + 2 * 60; // 2 minutes
+          setCountdown(Math.max(0, unlockSec - nowSec));
+        }, 1000);
+        return () => clearInterval(interval);
+      }
+    }, [harvestedAt]);
+    return (
+      <div className="absolute inset-0 bg-black/70 z-30 flex flex-col items-center justify-center rounded-2xl border-4 border-yellow-400">
+        <div className="text-white text-center">
+          <div className="mb-2 text-lg font-bold flex items-center justify-center">
+            <svg className="w-5 h-5 mr-2 inline-block" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 17a2 2 0 002-2v-2a2 2 0 00-4 0v2a2 2 0 002 2zm6-2v-2a6 6 0 10-12 0v2a2 2 0 002 2h8a2 2 0 002-2z"/></svg>
+            Plot Locked
+          </div>
+          <div className="mb-2 text-sm">This plot is locked for a cooldown period after harvest.<br />It will be available for planting after the cooldown <b>and</b> applying Fertilizer.</div>
+          <div className="mt-2 text-gray-200 font-semibold text-base flex items-center justify-center">
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0v2a2 2 0 002 2h8a2 2 0 002-2V8z"/></svg>
+            {countdown > 0
+              ? `Available to revive in ${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')} minutes`
+              : 'Ready to revive!'}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -238,6 +271,21 @@ export default function GlobalFarm() {
                         </span>
                       ) : null}
                     </div>
+                    {plot.status === 'needsWater' && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
+                        <Droplets className="w-10 h-10 text-blue-400 animate-bounce mb-2" />
+                        <span className="text-blue-700 font-semibold text-sm bg-white/80 rounded-xl px-3 py-1 shadow">Water me!</span>
+                      </div>
+                    )}
+                    {plot.status === 'withering' && plot.harvestedAt ? (
+                      <>
+                        <div className="absolute top-2 right-2 bg-yellow-600 text-white px-2 py-1 rounded text-xs font-bold z-40 flex items-center shadow-lg">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 17a2 2 0 002-2v-2a2 2 0 00-4 0v2a2 2 0 002 2zm6-2v-2a6 6 0 10-12 0v2a2 2 0 002 2h8a2 2 0 002-2z"/></svg>
+                          Locked
+                        </div>
+                        <LockedOverlay harvestedAt={plot.harvestedAt} />
+                      </>
+                    ) : null}
                   </div>
                 </div>
               );

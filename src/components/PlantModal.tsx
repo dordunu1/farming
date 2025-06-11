@@ -163,6 +163,17 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
             plantedAt,
             readyAt
           );
+          console.log('PlantModal: updateAfterPlant called', {
+            address,
+            plotId,
+            cropType,
+            yieldBonus,
+            tx,
+            quality,
+            expectedYield,
+            plantedAt,
+            readyAt
+          });
         } catch (err) {
           const cropType = selectedSeed.name;
           const yieldBonus = selectedSeed.bundles > 0 ? parseYield(selectedSeed.bundleYield) : parseYield(selectedSeed.yield);

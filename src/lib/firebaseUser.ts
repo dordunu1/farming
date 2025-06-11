@@ -3,7 +3,7 @@ import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, onSna
 
 export interface Plot {
   id: number;
-  status: 'empty' | 'growing' | 'ready' | 'watering' | 'withering';
+  status: 'empty' | 'growing' | 'ready' | 'watering' | 'withering' | 'needsWater';
   cropType: string;
   progress: number;
   timeRemaining?: number;
@@ -227,11 +227,9 @@ export async function updateAfterPlant(walletAddress: string, plotId: number, cr
     plot.id === plotId
       ? {
           ...plot,
-          status: 'growing',
+          status: 'needsWater',
           cropType,
           progress: 0,
-          plantedAt: typeof plantedAt === 'number' && !isNaN(plantedAt) ? plantedAt : null,
-          readyAt: typeof readyAt === 'number' && !isNaN(readyAt) ? readyAt : null,
           timeRemaining: (() => {
             // Set timeRemaining in minutes based on cropType
             if (cropType === 'Basic Rice Seed') return 8 * 60;
@@ -245,6 +243,7 @@ export async function updateAfterPlant(walletAddress: string, plotId: number, cr
         }
       : plot
   );
+  console.log('updateAfterPlant: updatedPlots', updatedPlots);
 
   await setDoc(userRef, {
     plots: updatedPlots,
@@ -473,4 +472,28 @@ export async function updateAfterHarvest(walletAddress: string, plotId: number, 
     plots: updatedPlots,
     recentActivity,
   }, { merge: true });
+}
+
+export async function updateAfterRevive(walletAddress: string, plotId: number) {
+  const userRef = doc(db, 'users', walletAddress);
+  const userSnap = await getDoc(userRef);
+  if (!userSnap.exists()) return;
+  const userData = userSnap.data();
+  const plots = userData.plots || [];
+  const updatedPlots = plots.map((plot: any) =>
+    plot.id === plotId
+      ? {
+          ...plot,
+          needsFertilizer: false,
+          harvestedAt: null,
+          state: 0,
+          status: 'empty',
+          cropType: '',
+          plantedAt: null,
+          readyAt: null,
+          progress: 0,
+        }
+      : plot
+  );
+  await setDoc(userRef, { plots: updatedPlots }, { merge: true });
 } 

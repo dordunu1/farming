@@ -1,9 +1,9 @@
 import React from 'react';
-import { User, Star, Coins, Trophy, CheckCircle } from 'lucide-react';
+import { User, Star, Coins, Trophy, CheckCircle, Wallet } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAccount } from 'wagmi';
+import { useAccount, useWriteContract } from 'wagmi';
 // @ts-ignore
-import { useContractWrite, useContractRead } from 'wagmi';
+import { useContractRead } from 'wagmi';
 import { getUserData } from '../lib/firebaseUser';
 
 interface ProfileProps {
@@ -34,6 +34,8 @@ export default function Profile({
     functionName: 'riceTokens',
     args: address ? [address] : undefined,
   });
+  // Claim RISE ERC20
+  const claimRiseTokens = useWriteContract();
   React.useEffect(() => {
     if (onChainRiceTokens) {
       setOnChainRT(Number(onChainRiceTokens).toLocaleString());
@@ -71,11 +73,14 @@ export default function Profile({
   if ((!wateredCount || wateredCount === 0) && userStats?.plots) {
     wateredCount = userStats.plots.filter((p: any) => p.waterLevel > 0).length;
   }
-  // Fallback for harvested
+  // Use numHarvested from Firestore if available
   let harvestedCount = userStats?.numHarvested;
   if ((!harvestedCount || harvestedCount === 0) && userStats?.plots) {
     harvestedCount = userStats.plots.filter((p: any) => p.status === 'empty' && p.cropType !== '').length;
   }
+
+  // Parse RT as integer
+  const rtInt = onChainRiceTokens ? Number(onChainRiceTokens) : 0;
 
   if (!isWalletConnected || !address) {
     return (
@@ -110,42 +115,47 @@ export default function Profile({
   const progressPercentage = (currentLevelXP / 1000) * 100;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto">
+    <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 max-w-md mx-auto border border-gray-100 relative" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.10)' }}>
+      {/* Compact wallet status badge */}
+      <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/80 border border-emerald-200 rounded-full px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm" style={{height: 28}}>
+        <Wallet className="w-4 h-4 text-emerald-500" />
+        Wallet Connected
+      </div>
       <div className="text-center mb-6">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-emerald-200">
+        <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-emerald-200 shadow-lg bg-white/60 backdrop-blur">
           <img
             src={userStats.pfp || `https://api.dicebear.com/7.x/avataaars/svg?seed=${address}`}
             alt="Avatar"
             className="w-20 h-20 object-cover"
           />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800">Player Profile</h2>
-        <p className="text-sm text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Player Profile</h2>
+        <p className="text-sm text-gray-600 mt-1 font-mono">
           {address.slice(0, 6)}...{address.slice(-4)}
         </p>
       </div>
       <div className="space-y-4">
         {/* Level Section */}
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
+        <div className="bg-purple-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-purple-100 shadow-sm">
+          <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <Star className="w-5 h-5 text-purple-600" />
               <span className="font-semibold text-gray-800">Level {userStats.playerLevel}</span>
             </div>
             <span className="text-sm text-gray-600">{userStats.totalXP} XP</span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
+          <div className="w-full bg-gray-200/60 rounded-full h-2">
             <div
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 mt-1 text-right">
             {currentLevelXP}/1000 XP to next level
           </p>
         </div>
         {/* Rice Tokens Section */}
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg p-4">
+        <div className="bg-yellow-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-yellow-100 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
@@ -156,11 +166,28 @@ export default function Profile({
               <span className="text-xs text-gray-600">Farm Value: {farmValue}</span>
               <span className="text-xs text-gray-600">Quests/Streaks: {questValue}</span>
             </div>
-            <span className="text-xl font-bold text-yellow-600">{onChainRT ?? '...'}</span>
+            <span className="text-2xl font-bold text-yellow-600 drop-shadow-sm">{onChainRT ?? '...'}</span>
           </div>
+          {/* Claim RISE button logic */}
+          {rtInt >= 20 ? (
+            <button
+              className="mt-3 w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 rounded-lg font-semibold hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow"
+              onClick={() => claimRiseTokens.writeContract({
+                address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+                abi: RiseFarmingABI,
+                functionName: 'claimRiseTokens',
+              })}
+            >
+              Claim RISE (ERC20)
+            </button>
+          ) : (
+            <div className="mt-3 w-full text-center text-xs text-gray-500 bg-yellow-100/80 rounded-lg py-2">
+              You need at least 20 RT to claim RISE tokens.
+            </div>
+          )}
         </div>
         {/* Action Counters */}
-        <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4">
+        <div className="bg-blue-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-blue-100 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <Trophy className="w-5 h-5 text-blue-600" />
             <span className="font-semibold text-gray-800">Your Progress</span>
@@ -181,7 +208,7 @@ export default function Profile({
           </div>
         </div>
         {/* Achievements Preview */}
-        <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-lg p-4">
+        <div className="bg-green-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-green-100 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <Trophy className="w-5 h-5 text-green-600" />
             <span className="font-semibold text-gray-800">Achievements</span>
@@ -189,11 +216,6 @@ export default function Profile({
           <p className="text-sm text-gray-600">
             View your farming milestones and unlock rewards
           </p>
-        </div>
-        {/* Wallet Status */}
-        <div className={`rounded-lg p-4 bg-green-50 border border-green-200 flex items-center gap-2`}>
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span className="font-semibold text-gray-800">Wallet Connected</span>
         </div>
       </div>
     </div>

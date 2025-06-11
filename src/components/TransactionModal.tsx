@@ -3,14 +3,15 @@ import { motion } from 'framer-motion';
 import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap, Info } from 'lucide-react';
 import { useAccount, useContractWrite, useWaitForTransactionReceipt, useContractRead } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
-import { updateAfterWater, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
+import { updateAfterWater, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, updateAfterRevive } from '../lib/firebaseUser';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { ethers } from 'ethers';
 
 interface TransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'water' | 'harvest';
+  type: 'water' | 'harvest' | 'revive';
   plotId: number | null;
   energy: number;
   setEnergy: (energy: number) => void;
@@ -90,6 +91,33 @@ function TransactionModal({
   React.useEffect(() => {
     if (type === 'water' && isWaterSuccess && address && plotId && waterTxHash && !hasUpdatedRef.current) {
       hasUpdatedRef.current = true;
+      setTimeout(() => {
+        (async () => {
+          // Use ethers.js to fetch the latest on-chain plot data
+          const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
+          const contract = new ethers.Contract(
+            import.meta.env.VITE_RISE_FARMING_ADDRESS,
+            RiseFarmingABI,
+            provider
+          );
+          const latestPlot = await contract.userPlots(address, plotId);
+          const plantedAt = Number(latestPlot.plantedAt);
+          const readyAt = Number(latestPlot.readyAt);
+          const userRef = doc(db, 'users', address);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const plots = userData.plots || [];
+            const updatedPlots = plots.map((plot: any) =>
+              plot.id === plotId
+                ? { ...plot, plantedAt, readyAt, status: 'growing' }
+                : plot
+            );
+            await setDoc(userRef, { plots: updatedPlots }, { merge: true });
+            console.log('Firestore updated after watering:', { plotId, plantedAt, readyAt });
+          }
+        })();
+      }, 1000);
       // Update local plot state immediately
       const updatedPlots = plots.map((plot: any) =>
         plot.id === plotId
@@ -123,6 +151,35 @@ function TransactionModal({
     }
     // Add Firestore riceTokens update for harvest
     if (type === 'harvest' && transactionStatus === 'success' && address && plotId && currentPlot) {
+      setTimeout(() => {
+        (async () => {
+          console.log('Harvesting: fetching on-chain plot data for plotId', plotId);
+          const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
+          const contract = new ethers.Contract(
+            import.meta.env.VITE_RISE_FARMING_ADDRESS,
+            RiseFarmingABI,
+            provider
+          );
+          const latestPlot = await contract.userPlots(address, plotId);
+          console.log('Harvesting: latestPlot', latestPlot);
+          const state = Number(latestPlot.state);
+          const needsFertilizer = Boolean(latestPlot.needsFertilizer);
+          const harvestedAt = Number(latestPlot.harvestedAt);
+          const userRef = doc(db, 'users', address);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const plots = userData.plots || [];
+            const updatedPlots = plots.map((plot: any) =>
+              plot.id === plotId
+                ? { ...plot, state, needsFertilizer, harvestedAt, status: state === 4 ? 'withering' : plot.status }
+                : plot
+            );
+            await setDoc(userRef, { plots: updatedPlots }, { merge: true });
+            console.log('Firestore updated after harvest:', { plotId, state, needsFertilizer, harvestedAt });
+          }
+        })();
+      }, 1000);
       (async () => {
         const userRef = doc(db, 'users', address);
         // Fetch on-chain RT and update Firestore
@@ -156,6 +213,39 @@ function TransactionModal({
           setTransactionStatus('idle');
         }, 1500);
       })();
+    }
+    // After a successful revive transaction
+    if (type === 'revive' && transactionStatus === 'success' && address && plotId) {
+      setTimeout(() => {
+        (async () => {
+          // Use ethers.js to fetch the latest on-chain plot data
+          const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
+          const contract = new ethers.Contract(
+            import.meta.env.VITE_RISE_FARMING_ADDRESS,
+            RiseFarmingABI,
+            provider
+          );
+          const latestPlot = await contract.userPlots(address, plotId);
+          const state = Number(latestPlot.state);
+          const needsFertilizer = Boolean(latestPlot.needsFertilizer);
+          const harvestedAt = Number(latestPlot.harvestedAt);
+          const plantedAt = Number(latestPlot.plantedAt);
+          const readyAt = Number(latestPlot.readyAt);
+          const userRef = doc(db, 'users', address);
+          const userSnap = await getDoc(userRef);
+          if (userSnap.exists()) {
+            const userData = userSnap.data();
+            const plots = userData.plots || [];
+            const updatedPlots = plots.map((plot: any) =>
+              plot.id === plotId
+                ? { ...plot, state, needsFertilizer, harvestedAt, plantedAt, readyAt, status: state === 0 ? 'empty' : plot.status }
+                : plot
+            );
+            await setDoc(userRef, { plots: updatedPlots }, { merge: true });
+            console.log('Firestore updated after revive:', { plotId, state, needsFertilizer, harvestedAt, plantedAt, readyAt });
+          }
+        })();
+      }, 1000);
     }
   }, [type, isWaterSuccess, address, plotId, waterTxHash, onClose, energy, setPlots, transactionStatus, currentPlot, onChainRiceTokens, onChainXP]);
 
