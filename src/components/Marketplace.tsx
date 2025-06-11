@@ -28,6 +28,7 @@ interface MarketItem {
   riseReward?: number;
   details: string;
   supply: number;
+  comingSoon?: boolean;
 }
 
 // Utility functions for capping and calculating adjusted values
@@ -187,7 +188,8 @@ const marketItems: MarketItem[] = [
     level: 2,
     benefits: ['Auto-watering', 'Saves energy', '6h intervals'],
     details: 'Auto-Watering System: Automatically waters all your crops every 6 hours, saving you energy and ensuring optimal crop quality. Essential for busy farmers.',
-    supply: 0
+    supply: 0,
+    comingSoon: true
   },
   {
     id: 5, // Watering Can
@@ -801,11 +803,14 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                       e.stopPropagation();
                       handleBuy(item);
                     }}
-                    disabled={!isWalletConnected}
+                    disabled={item.comingSoon || !isWalletConnected}
                   >
                     Buy Now
                   </button>
                 </div>
+                {item.comingSoon && (
+                  <div className="text-xs text-red-500 font-semibold mt-1 mb-1">Coming Soon</div>
+                )}
                 {showDetailsIdx === idx && (
                   <div className="absolute z-50 top-2 left-1/2 -translate-x-1/2 w-72 bg-white border border-gray-300 rounded-xl shadow-xl p-4 text-xs text-gray-700">
                     <strong>Details:</strong>
