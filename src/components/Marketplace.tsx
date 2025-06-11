@@ -600,6 +600,29 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     }
   };
 
+  // Add effect to handle successful transactions
+  useEffect(() => {
+    if (txSuccess && selectedItem && address && txHash && !processedTxs.has(txHash)) {
+      // Add to processed transactions
+      setProcessedTxs(prev => new Set([...prev, txHash]));
+      
+      // Log and sync activity after purchase
+      if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
+        logAndSyncUserActivity(address, {
+          icon: getActivityIcon('buy', selectedItem.name),
+          action: `Bought ${quantity}x ${selectedItem.name}`,
+          time: new Date().toISOString(),
+          reward: '+1 XP',
+          color: 'blue',
+          txHash: txHash,
+        }, {
+          riceTokens: Number(onChainRiceTokens),
+          totalXP: Number(onChainXP),
+        });
+      }
+    }
+  }, [txSuccess, selectedItem, address, txHash, processedTxs, quantity, onChainRiceTokens, onChainXP]);
+
   const getCardColor = (rarity: string) => {
     switch (rarity) {
       case 'legendary':

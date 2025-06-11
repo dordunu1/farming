@@ -505,26 +505,50 @@ export async function updateAfterHarvest(walletAddress: string, plotId: number, 
   }, { merge: true });
 }
 
-export async function updateAfterRevive(walletAddress: string, plotId: number) {
+export async function updateAfterRevive(walletAddress: string, plotId: number, txHash?: string) {
   const userRef = doc(db, 'users', walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const userData = userSnap.data();
   const plots = userData.plots || [];
+  let recentActivity = userData.recentActivity || [];
+
+  // Add revive activity
+  if (!recentActivity.length || recentActivity[0].txHash !== txHash) {
+    recentActivity = [
+      {
+        icon: '♻️',
+        action: `Revived Plot #${plotId}`,
+        time: new Date().toISOString(),
+        reward: '+0 RT',
+        color: 'purple',
+        txHash,
+      },
+      ...recentActivity,
+    ].slice(0, 20);
+  }
+
+  // Overwrite all fields for the revived plot
   const updatedPlots = plots.map((plot: any) =>
     plot.id === plotId
       ? {
-          ...plot,
-          needsFertilizer: false,
-          harvestedAt: null,
+          id: plotId,
+          cropType: '',
+          expectedYield: 0,
+          plantedAt: 0,
+          readyAt: 0,
+          harvestedAt: 0,
+          progress: 0,
+          quality: 'poor',
+          timeRemaining: 0,
+          txHash: '',
           state: 0,
           status: 'empty',
-          cropType: '',
-          plantedAt: null,
-          readyAt: null,
-          progress: 0,
+          needsFertilizer: false,
+          waterLevel: 0,
+          lastWatered: 0
         }
       : plot
   );
-  await setDoc(userRef, { plots: updatedPlots }, { merge: true });
+  await setDoc(userRef, { plots: updatedPlots, recentActivity }, { merge: true });
 } 

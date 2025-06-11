@@ -220,31 +220,32 @@ function TransactionModal({
     if (type === 'revive' && transactionStatus === 'success' && address && plotId) {
       setTimeout(() => {
         (async () => {
-          // Use ethers.js to fetch the latest on-chain plot data
-          const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
-          const contract = new ethers.Contract(
-            import.meta.env.VITE_RISE_FARMING_ADDRESS,
-            RiseFarmingABI,
-            provider
-          );
-          const latestPlot = await contract.userPlots(address, plotId);
-          const state = Number(latestPlot.state);
-          const needsFertilizer = Boolean(latestPlot.needsFertilizer);
-          const harvestedAt = Number(latestPlot.harvestedAt);
-          const plantedAt = Number(latestPlot.plantedAt);
-          const readyAt = Number(latestPlot.readyAt);
-          const userRef = doc(db, 'users', address);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            const plots = userData.plots || [];
-            const updatedPlots = plots.map((plot: any) =>
-              plot.id === plotId
-                ? { ...plot, state, needsFertilizer, harvestedAt, plantedAt, readyAt, status: state === 0 ? 'empty' : plot.status }
-                : plot
+          try {
+            // Use ethers.js to fetch the latest on-chain plot data (optional, for sync)
+            const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
+            const contract = new ethers.Contract(
+              import.meta.env.VITE_RISE_FARMING_ADDRESS,
+              RiseFarmingABI,
+              provider
             );
-            await setDoc(userRef, { plots: updatedPlots }, { merge: true });
-            console.log('Firestore updated after revive:', { plotId, state, needsFertilizer, harvestedAt, plantedAt, readyAt });
+            const latestPlot = await contract.userPlots(address, plotId);
+            const state = Number(latestPlot.state);
+            const needsFertilizer = Boolean(latestPlot.needsFertilizer);
+            const harvestedAt = Number(latestPlot.harvestedAt);
+            const plantedAt = Number(latestPlot.plantedAt);
+            const readyAt = Number(latestPlot.readyAt);
+
+            // Instead of direct Firestore update, call updateAfterRevive
+            await updateAfterRevive(address, plotId, waterTxHash);
+            // Optionally update local state if needed (fetch latest from Firestore or reset in memory)
+            // Log and sync activity is handled in updateAfterRevive
+            setTimeout(() => {
+              onClose();
+              setTransactionStatus('idle');
+            }, 1500);
+          } catch (error) {
+            console.error('[Revive] Firestore update error:', error);
+            setTransactionStatus('error');
           }
         })();
       }, 1000);
