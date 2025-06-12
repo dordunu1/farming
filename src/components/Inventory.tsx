@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { marketItems, MarketItem } from './Marketplace';
 
-const RISE_FARMING_ADDRESS = import.meta.env.VITE_RISE_FARMING_ADDRESS;
+const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS;
 
 // Card color utility (copied from Marketplace)
 const getCardColor = (rarity: string) => {
@@ -29,7 +29,7 @@ function Inventory() {
   const seedIds = marketItems.filter(item => item.category === 'seeds').map(item => item.id);
   // Fetch total balances (for all items)
   const { data: balancesRaw } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'getUserInventory',
     args: address ? [address, itemIds] : undefined,
@@ -38,7 +38,7 @@ function Inventory() {
   // Fetch bundle and single seed counts for all seeds using useContractReads
   const { data: bundleSeedsRaw } = useContractReads({
     contracts: seedIds.map(id => ({
-      address: RISE_FARMING_ADDRESS,
+      address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userBundleSeeds',
       args: [address, id],
@@ -46,7 +46,7 @@ function Inventory() {
   });
   const { data: singleSeedsRaw } = useContractReads({
     contracts: seedIds.map(id => ({
-      address: RISE_FARMING_ADDRESS,
+      address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userSingleSeeds',
       args: [address, id],

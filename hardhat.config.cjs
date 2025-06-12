@@ -21,6 +21,11 @@ const config = {
       chainId: 11155931,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
+    'somnia-testnet': {
+      url: process.env.SOMNIA_RPC_URL || 'https://dream-rpc.somnia.network',
+      chainId: 50312,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: {

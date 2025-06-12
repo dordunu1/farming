@@ -5,7 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "dev:rise": "vite --mode rise",
+    "dev:somnia": "vite --mode somnia",
+    "build": "tsc && vite build",
+    "build:rise": "tsc && vite build --mode rise",
+    "build:somnia": "tsc && vite build --mode somnia",
+    "deploy:somnia": "npx hardhat run scripts/deploy.cjs --network somnia-testnet",
     "lint": "eslint .",
     "preview": "vite preview"
   },

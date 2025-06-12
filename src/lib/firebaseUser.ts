@@ -1,4 +1,4 @@
-import { db } from './firebase';
+import { db, getUserDoc, getUserTransactions, CURRENT_CHAIN } from './firebase';
 import { doc, getDoc, setDoc, collection, addDoc, getDocs, query, orderBy, onSnapshot } from 'firebase/firestore';
 
 export interface Plot {
@@ -65,6 +65,7 @@ export interface Transaction {
 
 export interface UserData {
   walletAddress: string;
+  chainId: string;
   riceTokens: number;
   energy: number;
   maxEnergy: number;
@@ -91,7 +92,7 @@ export const levelThresholds = [0, 20, 80, 120, 180, 220, 300];
 
 // Increment action counters and XP, and level up if needed
 export async function incrementUserAction(walletAddress: string, action: 'plant' | 'water' | 'harvest', xpGained: number) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const user = userSnap.data() as UserData;
@@ -116,11 +117,12 @@ export async function incrementUserAction(walletAddress: string, action: 'plant'
 }
 
 export async function createUserIfNotExists(walletAddress: string, defaultData: Partial<UserData> = {}) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) {
     await setDoc(userRef, {
       walletAddress: walletAddress,
+      chainId: CURRENT_CHAIN,
       riceTokens: 0,
       energy: 0,
       maxEnergy: 100,
@@ -155,18 +157,18 @@ export async function createUserIfNotExists(walletAddress: string, defaultData: 
 }
 
 export async function getUserData(walletAddress: string) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   return userSnap.exists() ? userSnap.data() as UserData : null;
 }
 
 export async function addTransaction(walletAddress: string, tx: Transaction) {
-  const txRef = collection(db, 'users', walletAddress, 'transactions');
-  await addDoc(txRef, tx);
+  const txRef = getUserTransactions(walletAddress);
+  await addDoc(txRef, { ...tx, chainId: CURRENT_CHAIN });
 }
 
 export async function getTransactions(walletAddress: string) {
-  const txRef = collection(db, 'users', walletAddress, 'transactions');
+  const txRef = getUserTransactions(walletAddress);
   const q = query(txRef, orderBy('timestamp', 'desc'));
   const snapshot = await getDocs(q);
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Transaction[];
@@ -177,7 +179,7 @@ export async function getTransactions(walletAddress: string) {
  * Only updates Firestore if energy < 5.
  */
 export async function incrementFreeEnergy(walletAddress: string) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const user = userSnap.data() as UserData;
@@ -191,7 +193,7 @@ export async function incrementFreeEnergy(walletAddress: string) {
  * Set user's energy (for purchases, etc.), always capped at maxEnergy.
  */
 export async function setUserEnergy(walletAddress: string, newEnergy: number) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const user = userSnap.data() as UserData;
@@ -200,7 +202,7 @@ export async function setUserEnergy(walletAddress: string, newEnergy: number) {
 }
 
 export async function updateAfterPlant(walletAddress: string, plotId: number, cropType: string, yieldBonus: number, txHash: string, quality: string = 'good', expectedYield: number = 0, plantedAt?: number, readyAt?: number) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
 
@@ -264,7 +266,7 @@ export async function updateAfterPlant(walletAddress: string, plotId: number, cr
 }
 
 export async function updateAfterWater(walletAddress: string, plotId: number, txHash: string, waterIncrease: number = 40) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
 
@@ -326,7 +328,7 @@ export async function updateAfterWater(walletAddress: string, plotId: number, tx
 }
 
 export function onUserDataSnapshot(walletAddress: string, callback: (user: UserData | null) => void) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   return onSnapshot(userRef, (docSnap) => {
     if (docSnap.exists()) {
       callback(docSnap.data() as UserData);
@@ -337,7 +339,7 @@ export function onUserDataSnapshot(walletAddress: string, callback: (user: UserD
 }
 
 export async function addRecentActivity(walletAddress: string, activity: Activity) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const userData = userSnap.data();
@@ -351,7 +353,7 @@ export async function addRecentActivity(walletAddress: string, activity: Activit
 
 // Add a real-time listener for recentActivity
 export function onRecentActivitySnapshot(walletAddress: string, callback: (activity: Activity[]) => void) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   return onSnapshot(userRef, (docSnap) => {
     if (docSnap.exists()) {
       const data = docSnap.data();
@@ -361,7 +363,7 @@ export function onRecentActivitySnapshot(walletAddress: string, callback: (activ
 }
 
 export async function updatePlotProgress(walletAddress: string, plotId: number, progress: number, waterLevel: number, lastWatered?: number) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const userData = userSnap.data();
@@ -373,7 +375,7 @@ export async function updatePlotProgress(walletAddress: string, plotId: number, 
 }
 
 export async function resetDailyQuestsIfNeeded(walletAddress: string) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const userData = userSnap.data();
@@ -398,7 +400,7 @@ export async function resetDailyQuestsIfNeeded(walletAddress: string) {
  */
 export async function syncUserOnChainToFirestore(walletAddress: string, data: Partial<UserData>) {
   if (!walletAddress) return;
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   await setDoc(userRef, data, { merge: true });
 }
 
@@ -410,7 +412,7 @@ export async function syncUserOnChainToFirestore(walletAddress: string, data: Pa
 export async function logAndSyncUserActivity(walletAddress: string, activity: Activity, data: Partial<UserData>) {
   if (!walletAddress) return;
   // Log activity
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   let recentActivity = [];
   if (userSnap.exists()) {
@@ -453,7 +455,7 @@ export function getActivityIcon(type: string, itemName?: string): string {
 }
 
 export async function updateAfterHarvest(walletAddress: string, plotId: number, txHash: string, yieldAmount: number) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const userData = userSnap.data();
@@ -506,7 +508,7 @@ export async function updateAfterHarvest(walletAddress: string, plotId: number, 
 }
 
 export async function updateAfterRevive(walletAddress: string, plotId: number, txHash?: string) {
-  const userRef = doc(db, 'users', walletAddress);
+  const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
   const userData = userSnap.data();

@@ -54,7 +54,7 @@ function HomeScreen({
 
   // Fetch on-chain RT balance (move to top)
   const { data: onChainRiceTokens } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI,
     functionName: 'riceTokens',
     args: address ? [address] : undefined,
@@ -62,7 +62,7 @@ function HomeScreen({
 
   // Add on-chain XP fetch (move to top)
   const { data: onChainXP } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'totalXP',
     args: address ? [address as `0x${string}`] : undefined,
@@ -90,7 +90,7 @@ function HomeScreen({
 
   // Read streak from contract
   const { data: streakData } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userStreaks',
     args: address ? [address as `0x${string}`] : undefined,
@@ -101,7 +101,7 @@ function HomeScreen({
 
   // Add on-chain energy fetch
   const { data: onChainEnergy } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userEnergy',
     args: address ? [address as `0x${string}`] : undefined,
@@ -126,7 +126,7 @@ function HomeScreen({
 
   // Fetch on-chain totalHarvests for quest progress
   const { data: onChainTotalHarvests } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'totalHarvests',
     args: address ? [address as `0x${string}`] : undefined,
@@ -190,7 +190,7 @@ function HomeScreen({
   const [waterCans, setWaterCans] = useState(0);
   const WATERING_CAN_ID = 5;
   const { data: waterCansData } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userItemBalances',
     args: address ? [address, WATERING_CAN_ID] : undefined,
@@ -210,7 +210,7 @@ function HomeScreen({
   const { data: claimedStates, refetch: refetchClaimedStates } = useContractReads({
     contracts: address
       ? questIds.map((id) => ({
-          address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+          address: import.meta.env.VITE_FARMING_ADDRESS,
           abi: RiseFarmingABI as Abi,
           functionName: 'claimedQuests',
           args: [address, id],
@@ -310,7 +310,7 @@ function HomeScreen({
     if (!address) return;
     setClaimingQuestId(questId);
     const txObj = {
-      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'claimQuestReward',
       args: [BigInt(questId)],
@@ -365,13 +365,13 @@ function HomeScreen({
   const { writeContract: writeClaimEnergy, data: claimTxHash, isPending: isClaimPending } = useContractWrite();
   const { isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
   const { data: hasClaimedInitialEnergy } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'hasClaimedInitialEnergy',
     args: address ? [address] : undefined,
   });
   const { data: lastClaimedEnergy } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'lastEnergyClaim',
     args: address ? [address] : undefined,
@@ -415,7 +415,7 @@ function HomeScreen({
   // Claim handler
   const handleClaimEnergy = () => {
     writeClaimEnergy({
-      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'claimInitialEnergy',
       args: [],

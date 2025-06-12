@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, collection, doc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
@@ -18,4 +18,17 @@ const analytics = getAnalytics(app);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-export { app, analytics, db, auth }; 
+// Get the current chain ID from environment variables
+const CURRENT_CHAIN = import.meta.env.VITE_CURRENT_CHAIN || 'RISE';
+
+// Helper functions for chain-specific collections (now under 'chains')
+export const getChainCollection = (collectionName: string) => collection(db, 'chains', CURRENT_CHAIN, collectionName);
+export const getChainDoc = (collectionName: string, docId: string) => doc(db, 'chains', CURRENT_CHAIN, collectionName, docId);
+export const getUserDoc = (userId: string) => getChainDoc('users', userId);
+export const getUserTransactions = (userId: string) => collection(db, 'chains', CURRENT_CHAIN, 'users', userId, 'transactions');
+
+// Shared auth collection
+export const userAuthCollection = collection(db, 'userAuth');
+export const getUserAuthDoc = (userId: string) => doc(db, 'userAuth', userId);
+
+export { app, analytics, db, auth, CURRENT_CHAIN }; 

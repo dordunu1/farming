@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { db } from '../lib/firebase';
+import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 import { Droplets, Scissors, AlertCircle, Sprout } from 'lucide-react';
 import CircularProgressBar from './CircularProgressBar';
@@ -43,7 +43,7 @@ export default function GlobalFarm() {
   useEffect(() => {
     async function fetchFarms() {
       setLoading(true);
-      const usersSnap = await getDocs(collection(db, 'users'));
+      const usersSnap = await getDocs(collection(db, 'chains', CURRENT_CHAIN, 'users'));
       let users = usersSnap.docs.map(doc => doc.data() as UserFarm);
       // Only users with at least 1 non-empty plot
       users = users.filter(u => u.plots && u.plots.some(plot => plot.status !== 'empty'));

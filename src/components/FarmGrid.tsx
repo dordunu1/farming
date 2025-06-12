@@ -62,6 +62,9 @@ interface Plot {
   state: number;
 }
 
+// Replace the hardcoded RISE_FARMING_ADDRESS with the generic one
+const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS;
+
 function LockedOverlay({ harvestedAt }: { harvestedAt: number }) {
   const [countdown, setCountdown] = React.useState(0);
   React.useEffect(() => {
@@ -109,7 +112,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
 
   // Fetch user's fertilizer count from inventory
   const { data: fertilizerCount } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userItemBalances',
     args: address ? [address, FERTILIZER_SPREADER_ID] : undefined,
@@ -121,7 +124,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const { data: onChainPlots, refetch: refetchOnChainPlots } = useContractReads({
     contracts: address
       ? plotIds.map((id) => ({
-          address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+          address: FARMING_ADDRESS,
           abi: RiseFarmingABI as Abi,
           functionName: 'userPlots',
           args: [address, id],
@@ -374,7 +377,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const revivePlot = (plotId: number) => {
     if (!address) return;
     writeRevivePlot({
-      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'revivePlot',
       args: [plotId],
@@ -703,7 +706,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
                 className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
                 onClick={() => {
                   writeRevivePlot({
-                    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+                    address: FARMING_ADDRESS,
                     abi: RiseFarmingABI as any,
                     functionName: 'revivePlot',
                     args: [selectedPlot],

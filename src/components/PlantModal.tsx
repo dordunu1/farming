@@ -44,7 +44,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   // Use useContractReads for each seed ID (like Inventory)
   const { data: bundleSeedsRaw } = useContractReads({
     contracts: seedIds.map(id => ({
-      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userBundleSeeds',
       args: [address, id],
@@ -52,7 +52,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   });
   const { data: singleSeedsRaw } = useContractReads({
     contracts: seedIds.map(id => ({
-      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userSingleSeeds',
       args: [address, id],
@@ -139,7 +139,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
         try {
           if (!publicClient) throw new Error('No publicClient');
           const plotData = await publicClient.readContract({
-            address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+            address: import.meta.env.VITE_FARMING_ADDRESS,
             abi: RiseFarmingABI as any,
             functionName: 'userPlots',
             args: [address, plotId],
@@ -210,7 +210,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   // Fetch on-chain price for each seed (single seeds only, not bundles)
   const { data: itemsRaw } = useContractReads({
     contracts: seedIds.map(id => ({
-      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'items',
       args: [id],
@@ -246,7 +246,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   const handlePlantSeed = () => {
     if (!canPlant || !plotId || !selectedSeed) return;
     writeContract({
-      address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+      address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'plantSeed',
       args: [plotId, selectedSeed.id],

@@ -5,7 +5,7 @@ import { useAccount, useContractWrite, useWaitForTransactionReceipt, useContract
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { updateAfterWater, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, updateAfterRevive } from '../lib/firebaseUser';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { ethers } from 'ethers';
 
 interface TransactionModalProps {
@@ -57,7 +57,7 @@ function TransactionModal({
   // Fetch on-chain plot state for harvest logic
   const shouldFetch = isOpen && !!address && plotId !== null && typeof plotId === 'number';
   const { data: fetchedPlot } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userPlots',
     args: shouldFetch ? [address as `0x${string}`, plotId as number] : undefined,
@@ -67,14 +67,14 @@ function TransactionModal({
 
   const GOLDEN_HARVESTER_SINGLE_ID = 17;
   const { data: harvesterUses, refetch: refetchHarvesterUses } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userToolUses',
     args: address ? [address, GOLDEN_HARVESTER_SINGLE_ID] : undefined,
   });
 
   const { data: onChainRiceTokens } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'riceTokens',
     args: address ? [address] : undefined,
@@ -82,7 +82,7 @@ function TransactionModal({
 
   // Add on-chain XP fetch
   const { data: onChainXP } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'totalXP',
     args: address ? [address] : undefined,
@@ -96,14 +96,14 @@ function TransactionModal({
           // Use ethers.js to fetch the latest on-chain plot data
           const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
           const contract = new ethers.Contract(
-            import.meta.env.VITE_RISE_FARMING_ADDRESS,
+            import.meta.env.VITE_FARMING_ADDRESS,
             RiseFarmingABI,
             provider
           );
           const latestPlot = await contract.userPlots(address, plotId);
           const plantedAt = Number(latestPlot.plantedAt);
           const readyAt = Number(latestPlot.readyAt);
-          const userRef = doc(db, 'users', address);
+          const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
             const userData = userSnap.data();
@@ -156,7 +156,7 @@ function TransactionModal({
           console.log('Harvesting: fetching on-chain plot data for plotId', plotId);
           const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
           const contract = new ethers.Contract(
-            import.meta.env.VITE_RISE_FARMING_ADDRESS,
+            import.meta.env.VITE_FARMING_ADDRESS,
             RiseFarmingABI,
             provider
           );
@@ -165,7 +165,7 @@ function TransactionModal({
           const state = Number(latestPlot.state);
           const needsFertilizer = Boolean(latestPlot.needsFertilizer);
           const harvestedAt = Number(latestPlot.harvestedAt);
-          const userRef = doc(db, 'users', address);
+          const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address);
           const userSnap = await getDoc(userRef);
           if (userSnap.exists()) {
             const userData = userSnap.data();
@@ -183,7 +183,7 @@ function TransactionModal({
         })();
       }, 1000);
       (async () => {
-        const userRef = doc(db, 'users', address);
+        const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address);
         // Fetch on-chain RT and update Firestore
         if (onChainRiceTokens !== undefined) {
           await setDoc(userRef, { riceTokens: Number(onChainRiceTokens) }, { merge: true });
@@ -224,7 +224,7 @@ function TransactionModal({
             // Use ethers.js to fetch the latest on-chain plot data (optional, for sync)
             const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
             const contract = new ethers.Contract(
-              import.meta.env.VITE_RISE_FARMING_ADDRESS,
+              import.meta.env.VITE_FARMING_ADDRESS,
               RiseFarmingABI,
               provider
             );
@@ -294,7 +294,7 @@ function TransactionModal({
         setTransactionStatus('pending');
         console.log('Calling waterCrop with:', { plotId, address });
         writeContract({
-          address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+          address: import.meta.env.VITE_FARMING_ADDRESS,
           abi: RiseFarmingABI as any,
           functionName: 'waterCrop',
           args: [plotId],
@@ -306,7 +306,7 @@ function TransactionModal({
         setTransactionStatus('pending');
         console.log('Calling harvestWithGoldenHarvester with:', { plotId, address });
         writeContract({
-          address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+          address: import.meta.env.VITE_FARMING_ADDRESS,
           abi: RiseFarmingABI as any,
           functionName: 'harvestWithGoldenHarvester',
           args: [plotId],

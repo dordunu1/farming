@@ -5,10 +5,12 @@ import { useConnectModal } from '@rainbow-me/rainbowkit';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { addRecentActivity, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, getUserData, levelThresholds } from '../lib/firebaseUser';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-const RISE_FARMING_ADDRESS = import.meta.env.VITE_RISE_FARMING_ADDRESS as `0x${string}`;
+import { db, CURRENT_CHAIN } from '../lib/firebase';
+const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS as `0x${string}`;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`;
 const DURABLE_TOOL_IDS = [17, 18, 6]; // Golden Harvester (Single), Bundle, Auto-Watering System
+const NATIVE_SYMBOL = import.meta.env.VITE_CURRENCY_SYMBOL || 'ETH';
+const CHAIN_ID = import.meta.env.VITE_CHAIN_ID;
 
 interface MarketplaceProps {
   isWalletConnected: boolean;
@@ -49,7 +51,7 @@ const marketItems: MarketItem[] = [
     name: 'Basic Rice Seed (Single)',
     description: 'A single basic rice seed for everyday farming',
     usdPrice: 1,
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'seeds',
     rarity: 'common',
     icon: <span className="text-xl">🌾</span>,
@@ -64,7 +66,7 @@ const marketItems: MarketItem[] = [
     name: 'Basic Rice Seed (Bundle)',
     description: 'Bundle of basic rice seeds with a 40% bonus yield and growth',
     usdPrice: 4.5,
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'bundle',
     rarity: 'common',
     icon: <span className="text-xl">🌾</span>,
@@ -79,7 +81,7 @@ const marketItems: MarketItem[] = [
     name: 'Premium Rice Seed (Single)',
     description: 'A single premium rice seed with higher yield',
     usdPrice: 3,
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'seeds',
     rarity: 'rare',
     icon: <span className="text-xl">🌾</span>,
@@ -94,7 +96,7 @@ const marketItems: MarketItem[] = [
     name: 'Premium Rice Seed (Bundle)',
     description: 'Bundle of premium rice seeds with a 20% bonus yield and growth',
     usdPrice: 5.5,
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'bundle',
     rarity: 'rare',
     icon: <span className="text-xl">🌾</span>,
@@ -109,7 +111,7 @@ const marketItems: MarketItem[] = [
     name: 'Hybrid Rice Seed (Single)',
     description: 'A single hybrid rice seed with unique properties',
     usdPrice: 5,
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'seeds',
     rarity: 'legendary',
     icon: <span className="text-xl">🌾</span>,
@@ -124,7 +126,7 @@ const marketItems: MarketItem[] = [
     name: 'Hybrid Rice Seed (Bundle)',
     description: 'Bundle of hybrid rice seeds with a 21.43% bonus yield and growth',
     usdPrice: 9,
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'bundle',
     rarity: 'legendary',
     icon: <span className="text-xl">🌾</span>,
@@ -139,7 +141,7 @@ const marketItems: MarketItem[] = [
     name: 'Golden Harvester (Single)',
     description: 'Harvests a single plot with +20% bonus tokens',
     usdPrice: 2,
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'tools',
     rarity: 'legendary',
     icon: <Scissors className="w-6 h-6 text-yellow-600" />,
@@ -153,7 +155,7 @@ const marketItems: MarketItem[] = [
     name: 'Golden Harvester (Bundle)',
     description: 'Bundle of Golden Harvesters',
     usdPrice: 4, // Discounted price
-    currency: 'ETH',
+    currency: NATIVE_SYMBOL,
     category: 'bundle',
     rarity: 'legendary',
     icon: <Scissors className="w-6 h-6 text-yellow-600" />,
@@ -196,7 +198,7 @@ const marketItems: MarketItem[] = [
     name: 'Watering Can',
     description: 'Waters your crops to improve growth and quality',
     usdPrice: 1, // or whatever you want to display
-    currency: 'ETH', // or 'RT' if you want to use Rice Tokens
+    currency: NATIVE_SYMBOL, // or 'RT' if you want to use Rice Tokens
     category: 'tools',
     rarity: 'common',
     icon: <Droplets className="w-6 h-6 text-blue-400" />,
@@ -224,7 +226,7 @@ const marketItems: MarketItem[] = [
 function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBreakdown, quantity, setQuantity }: { open: boolean, item: MarketItem | null, onClose: () => void, onConfirm: () => void, pending: boolean, success: boolean, bundleBreakdown?: string[], quantity: number, setQuantity: (q: number) => void }) {
   const { address } = useAccount();
   const { data: userEnergy } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userEnergy',
     args: address ? [address] : undefined,
@@ -318,7 +320,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const bundleIds = marketItems.filter(item => item.category === 'bundle').map(item => item.id);
   const { data: itemsRaw } = useContractReads({
     contracts: itemIds.map(id => ({
-      address: RISE_FARMING_ADDRESS,
+      address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'items',
       args: [id],
@@ -333,7 +335,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   // Fetch bundle data for all bundle IDs
   const { data: bundlesRaw } = useContractReads({
     contracts: bundleIds.map(id => ({
-      address: RISE_FARMING_ADDRESS,
+      address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'bundles',
       args: [id],
@@ -349,26 +351,26 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
 
   // Fetch tool uses for the connected user
   const { data: toolUsesSingle } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userToolUses',
     args: address ? [address, 17] : undefined,
   });
   const { data: toolUsesBundle } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userToolUses',
     args: address ? [address, 18] : undefined,
   });
   const { data: toolUsesAuto } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userToolUses',
     args: address ? [address, 6] : undefined,
   });
 
   const { data: userEnergy } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userEnergy',
     args: address ? [address] : undefined,
@@ -378,13 +380,13 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const showEnergyWarning = userEnergy !== undefined && Number(userEnergy) <= 2;
 
   const { data: onChainRiceTokens } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'riceTokens',
     args: address ? [address] : undefined,
   });
   const { data: onChainXP } = useContractRead({
-    address: RISE_FARMING_ADDRESS,
+    address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'totalXP',
     args: address ? [address] : undefined,
@@ -458,7 +460,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       const icon = getActivityIcon('buy', selectedItem.name);
       // Calculate reward string
       let reward = '';
-      if (selectedItem.currency === 'ETH') {
+      if (selectedItem.currency === NATIVE_SYMBOL) {
         let ethSpent = 0;
         if (selectedItem.category === 'bundle') {
           const bundle = bundleDataMap.get(selectedItem.id);
@@ -472,7 +474,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             ethSpent = (Number(itemRaw.result[3]) / 1e18) * quantity;
           }
         }
-        reward = `-${ethSpent.toFixed(4)} ETH`;
+        reward = `-${ethSpent.toFixed(4)} ${NATIVE_SYMBOL}`;
       } else {
         reward = `-${selectedItem.usdPrice * quantity} RT`;
       }
@@ -495,7 +497,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
           newLevel++;
         }
         if (newLevel > 7) newLevel = 7;
-        setDoc(doc(db, 'users', address), {
+        setDoc(doc(db, 'chains', CURRENT_CHAIN, 'users', address), {
           totalXP: newXP,
           playerLevel: newLevel,
         }, { merge: true });
@@ -548,14 +550,14 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     if (!selectedItem || !address) return;
     setPending(true);
     setSuccess(false);
-    if (selectedItem.currency === 'ETH') {
+    if (selectedItem.currency === NATIVE_SYMBOL) {
       if (selectedItem.category === 'bundle') {
         const bundle = bundleDataMap.get(selectedItem.id);
         const priceETH = (bundle && Array.isArray(bundle) && bundle.length >= 7)
           ? BigInt(bundle[2]) * BigInt(quantity)
           : BigInt(0);
         writeBundle({
-          address: RISE_FARMING_ADDRESS,
+          address: FARMING_ADDRESS,
           abi: RiseFarmingABI as any,
           functionName: 'buyBundle',
           args: [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
@@ -571,7 +573,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
           priceETH = BigInt(itemRaw.result[3] as string) * BigInt(quantity);
         }
         writeSingle({
-          address: RISE_FARMING_ADDRESS,
+          address: FARMING_ADDRESS,
           abi: RiseFarmingABI as any,
           functionName: 'buyItem',
           args: [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
@@ -583,7 +585,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       if (selectedItem.id === 19) {
         // Energy Booster: call the dedicated function
         writeRT({
-          address: RISE_FARMING_ADDRESS,
+          address: FARMING_ADDRESS,
           abi: RiseFarmingABI as any,
           functionName: 'buyEnergyBooster',
           args: [],
@@ -592,7 +594,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       } else {
         // Other RT-priced items
         writeRT({
-          address: RISE_FARMING_ADDRESS,
+          address: FARMING_ADDRESS,
           abi: RiseFarmingABI as any,
           functionName: 'buyItemWithGameRT',
           args: [BigInt(selectedItem.id), BigInt(quantity)],
@@ -730,6 +732,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             // For bundles, get priceETH and supply from contract
             let ethAmount;
             let supply;
+            let showUsd = true;
             if (item.category === 'bundle') {
               const bundle = bundleDataMap.get(item.id);
               // Defensive: check bundle exists and is an array of length >= 7
@@ -740,8 +743,21 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 ethAmount = undefined;
                 supply = '...';
               }
+              if (CHAIN_ID === '50312') {
+                showUsd = false;
+              }
             } else {
-              ethAmount = item.currency === 'ETH' ? (item.usdPrice / ethPrice).toFixed(6) : undefined;
+              if (CHAIN_ID === '50312') { // Somnia
+                if (item.currency === NATIVE_SYMBOL) {
+                  ethAmount = '1.000000';
+                  showUsd = false;
+                }
+              } else { // RISE or other
+                if (item.currency === NATIVE_SYMBOL) {
+                  ethAmount = (item.usdPrice / ethPrice).toFixed(6);
+                  showUsd = true;
+                }
+              }
               supply = supplyMap.get(item.id) !== undefined && supplyMap.get(item.id) !== '...'
                 ? supplyMap.get(item.id).toString()
                 : '...';
@@ -792,9 +808,9 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="font-bold text-sm text-emerald-600">
-                    {item.currency === 'ETH' ? `${ethAmount} ETH` : `${item.usdPrice} RT`}
+                    {item.currency === NATIVE_SYMBOL ? `${ethAmount} ${NATIVE_SYMBOL}` : `${item.usdPrice} RT`}
                   </span>
-                  {item.currency === 'ETH' && (
+                  {showUsd && item.currency === NATIVE_SYMBOL && (
                     <span className="text-xs text-gray-500">≈ ${item.usdPrice.toFixed(2)}</span>
                   )}
                   <button

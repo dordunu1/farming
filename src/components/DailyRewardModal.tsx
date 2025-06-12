@@ -9,7 +9,7 @@ interface DailyRewardModalProps {
   onClose: () => void;
 }
 
-const RISE_FARMING_ADDRESS = import.meta.env.VITE_RISE_FARMING_ADDRESS;
+const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS;
 
 function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   const { address } = useAccount();
@@ -29,13 +29,13 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
     contracts: address
       ? [
           {
-            address: RISE_FARMING_ADDRESS,
+            address: FARMING_ADDRESS,
             abi: RiseFarmingABI as any,
             functionName: 'userStreaks',
             args: [address as `0x${string}`],
           },
           {
-            address: RISE_FARMING_ADDRESS,
+            address: FARMING_ADDRESS,
             abi: RiseFarmingABI as any,
             functionName: 'lastClaimedDay',
             args: [address as `0x${string}`],
@@ -71,7 +71,7 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
     contracts: address
       ? [
           {
-            address: RISE_FARMING_ADDRESS,
+            address: FARMING_ADDRESS,
             abi: RiseFarmingABI as any,
             functionName: 'dailyRewardPaused',
           },
@@ -103,7 +103,7 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   const handleClaim = () => {
     if (!address) return;
     writeContract({
-      address: RISE_FARMING_ADDRESS,
+      address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'claimDailyReward',
       args: [],

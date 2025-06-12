@@ -1,8 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Users collection
-    match /users/{userId} {
+    // Chain-specific user collections under /chains/{chainId}/users/{userId}
+    match /chains/{chainId}/users/{userId} {
       allow read: if request.auth != null;
       allow write: if request.auth != null && request.auth.uid == userId;
       
@@ -61,6 +61,12 @@ service cloud.firestore {
         )
       );
       allow create: if true;
+    }
+
+    // Shared user auth data
+    match /userAuth/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
   }
 } 

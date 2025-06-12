@@ -28,10 +28,29 @@ const riseTestnet = {
   testnet: true,
 };
 
+const somniaTestnet = {
+  id: parseInt(import.meta.env.VITE_CHAIN_ID),
+  name: import.meta.env.VITE_NETWORK_NAME,
+  network: 'somnia-testnet',
+  nativeCurrency: {
+    name: import.meta.env.VITE_CURRENCY_SYMBOL,
+    symbol: import.meta.env.VITE_CURRENCY_SYMBOL,
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: [import.meta.env.VITE_RPC_URL] },
+    public: { http: [import.meta.env.VITE_RPC_URL] },
+  },
+  blockExplorers: {
+    default: { name: 'Somnia Explorer', url: import.meta.env.VITE_BLOCK_EXPLORER_URL },
+  },
+  testnet: true,
+};
+
 const config = getDefaultConfig({
   appName: 'RiceRise',
   projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
-  chains: [riseTestnet],
+  chains: [riseTestnet, somniaTestnet],
   ssr: false,
 });
 

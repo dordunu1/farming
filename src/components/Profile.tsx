@@ -17,7 +17,6 @@ interface ProfileProps {
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import RiseFarmingABI from '../abi/RiseFarming.json'; // You will add this file after deployment
-const RISE_FARMING_ADDRESS = '0x6DFb9F5e7352c31a88Bd663eCf4082F2e73a3c83'; // Replace after deploy
 
 export default function Profile({ 
   isWalletConnected, 
@@ -31,7 +30,7 @@ export default function Profile({
 
   // Fetch on-chain RT balance
   const { data: onChainRiceTokens } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI,
     functionName: 'riceTokens',
     args: address ? [address] : undefined,
@@ -67,7 +66,7 @@ export default function Profile({
 
   // Fetch on-chain numHarvested (totalHarvests)
   const { data: onChainNumHarvested } = useContractRead({
-    address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+    address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI,
     functionName: 'totalHarvests',
     args: address ? [address] : undefined,
@@ -182,7 +181,7 @@ export default function Profile({
             <button
               className="mt-3 w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 rounded-lg font-semibold hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow"
               onClick={() => claimRiseTokens.writeContract({
-                address: import.meta.env.VITE_RISE_FARMING_ADDRESS,
+                address: import.meta.env.VITE_FARMING_ADDRESS,
                 abi: RiseFarmingABI,
                 functionName: 'claimRiseTokens',
               })}
