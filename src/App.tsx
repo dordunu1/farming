@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {ShoppingCart, Trophy, User, BookOpen, Bell, Box, Sprout, Globe } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
@@ -46,6 +46,20 @@ function App() {
 
   const [firebaseAuthReady, setFirebaseAuthReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+
+  const [showNavOnboarding, setShowNavOnboarding] = useState(false);
+  const [navOnboardingStep, setNavOnboardingStep] = useState(0);
+  const navButtonRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
+
+  // Onboarding steps for nav bar
+  const navSteps = [
+    { key: 'farm', label: 'My Farm', description: 'Manage your personal farm, plant crops, and harvest rewards.' },
+    { key: 'globalfarm', label: 'Global Farm', description: 'See the global farm and interact with the community.' },
+    { key: 'marketplace', label: 'Marketplace', description: 'Buy farming equipment and seeds.' },
+    { key: 'inventory', label: 'Inventory', description: 'View and manage your collected items.' },
+    { key: 'leaderboard', label: 'Leaderboard', description: 'See the top players and your ranking.' },
+    { key: 'profile', label: 'Profile', description: 'Manage your account and settings.' },
+  ];
 
   // Sync activeTab with URL
   useEffect(() => {
@@ -116,6 +130,25 @@ function App() {
     });
     return () => unsubscribe();
   }, [isConnected]);
+
+  useEffect(() => {
+    if (!localStorage.getItem('navOnboardingComplete')) {
+      setShowNavOnboarding(true);
+    }
+  }, []);
+
+  const handleNavOnboardingNext = () => {
+    if (navOnboardingStep < navSteps.length - 1) {
+      setNavOnboardingStep(navOnboardingStep + 1);
+    } else {
+      localStorage.setItem('navOnboardingComplete', 'true');
+      setShowNavOnboarding(false);
+    }
+  };
+  const handleNavOnboardingSkip = () => {
+    localStorage.setItem('navOnboardingComplete', 'true');
+    setShowNavOnboarding(false);
+  };
 
   if (!isConnected) {
     // Enhanced connect overlay
@@ -376,25 +409,27 @@ function App() {
           <div className="flex items-center justify-around py-4">
             {[
               { id: 'farm', icon: Sprout, label: 'My Farm', route: '/farm' },
-              { id: 'marketplace', icon: ShoppingCart, label: 'Marketplace', route: '/marketplace' },
-              { id: 'leaderboard', icon: Trophy, label: 'Leaderboard', route: '/leaderboard' },
               { id: 'globalfarm', icon: Globe, label: 'Global Farm', route: '/globalfarm' },
+              { id: 'marketplace', icon: ShoppingCart, label: 'Marketplace', route: '/marketplace' },
               { id: 'inventory', icon: Box, label: 'Inventory', route: '/inventory' },
+              { id: 'leaderboard', icon: Trophy, label: 'Leaderboard', route: '/leaderboard' },
               { id: 'profile', icon: User, label: 'Profile', route: '/profile' }
-            ].map((tab) => (
+            ].map((tab, idx) => (
               <motion.button
                 key={tab.id}
+                ref={navButtonRefs[idx]}
+                data-nav={tab.id}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveTab(tab.id);
                   navigate(tab.route);
                 }}
-                className={`flex flex-col items-center space-y-1 px-6 py-2 rounded-xl transition-all duration-200 ${
+                className={`flex flex-col items-center space-y-1 px-6 py-2 rounded-xl transition-all duration-200 relative ${
                   activeTab === tab.id 
                     ? 'text-emerald-600 bg-emerald-50 shadow-lg' 
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                }`}
+                } ${showNavOnboarding && navOnboardingStep === idx ? 'ring-4 ring-emerald-300 z-50' : ''}`}
               >
                 <tab.icon className="w-6 h-6" />
                 <span className="text-xs font-medium">{tab.label}</span>
@@ -409,6 +444,23 @@ function App() {
           </div>
         </div>
       </motion.nav>
+
+      {/* Nav Onboarding Overlay */}
+      {showNavOnboarding && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center pointer-events-none">
+          <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={handleNavOnboardingSkip}></div>
+          <div className="relative mb-32 max-w-xs w-full pointer-events-auto">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center animate-fadeIn">
+              <h3 className="text-lg font-bold mb-2 text-emerald-700">{navSteps[navOnboardingStep].label}</h3>
+              <p className="text-gray-600 mb-4 text-center">{navSteps[navOnboardingStep].description}</p>
+              <div className="flex gap-2 w-full">
+                <button onClick={handleNavOnboardingSkip} className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition">Skip</button>
+                <button onClick={handleNavOnboardingNext} className="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition">{navOnboardingStep === navSteps.length - 1 ? 'Finish' : 'Next'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Tutorial
         isOpen={showTutorial}
