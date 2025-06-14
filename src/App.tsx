@@ -12,7 +12,7 @@ import { useAccount, useSignMessage } from 'wagmi';
 import type { Notification } from './components/NotificationCenter';
 import Inventory from './components/Inventory';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { createUserIfNotExists } from './lib/firebaseUser';
+import { createUserIfNotExists, decreaseWaterLevels } from './lib/firebaseUser';
 import GlobalFarm from './components/GlobalFarm';
 import WalletModal from './components/WalletModal';
 import { auth } from './lib/firebase';
@@ -149,6 +149,22 @@ function App() {
     localStorage.setItem('navOnboardingComplete', 'true');
     setShowNavOnboarding(false);
   };
+
+  // Add water level decrease interval
+  useEffect(() => {
+    if (address && isSigned && firebaseAuthReady) {
+      // Initial call
+      decreaseWaterLevels(address);
+      
+      // Set up interval for every 2 minutes
+      const interval = setInterval(() => {
+        decreaseWaterLevels(address);
+      }, 2 * 60 * 1000); // 2 minutes in milliseconds
+      
+      // Cleanup interval on unmount
+      return () => clearInterval(interval);
+    }
+  }, [address, isSigned, firebaseAuthReady]);
 
   if (!isConnected) {
     // Enhanced connect overlay

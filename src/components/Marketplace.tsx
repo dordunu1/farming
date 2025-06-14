@@ -203,8 +203,8 @@ const marketItems: MarketItem[] = [
     rarity: 'common',
     icon: <Droplets className="w-6 h-6 text-blue-400" />,
     level: 1,
-    benefits: ['+40% water level', 'Improved crop quality'],
-    details: 'Use this tool to water your crops and keep them healthy. Each use increases water level by 40%.',
+    benefits: ['+90% water level', 'Improved crop quality'],
+    details: 'Use this tool to water your crops and keep them healthy. Each use increases water level by 90%.',
     supply: 50000
   },
   {

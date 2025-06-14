@@ -125,11 +125,11 @@ function TransactionModal({
       // Update local plot state immediately
       const updatedPlots = plots.map((plot: any) =>
         plot.id === plotId
-          ? { ...plot, waterLevel: Math.min(100, (plot.waterLevel || 0) + 40), status: (plot.waterLevel || 0) + 40 > 80 ? 'watering' : 'growing' }
+          ? { ...plot, waterLevel: Math.min(100, (plot.waterLevel || 0) + 90), status: (plot.waterLevel || 0) + 90 > 80 ? 'watering' : 'growing' }
           : plot
       );
       setPlots(updatedPlots);
-      updateAfterWater(address, plotId, waterTxHash).then(() => {
+      updateAfterWater(address, plotId, waterTxHash, 90).then(() => {
         setEnergy(energy - 5); // Only deduct energy after success
         setTransactionStatus('success');
         setTxHash(waterTxHash);
@@ -355,7 +355,7 @@ function TransactionModal({
         description: 'Water your rice crops to help them grow faster',
         icon: <Droplets className="w-8 h-8 text-blue-500" />,
         cost: '1 Energy',
-        benefit: '+40% water level, improved quality'
+        benefit: '+90% water level, improved quality'
       };
     } else {
       return {

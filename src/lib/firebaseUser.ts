@@ -265,7 +265,7 @@ export async function updateAfterPlant(walletAddress: string, plotId: number, cr
   }, { merge: true });
 }
 
-export async function updateAfterWater(walletAddress: string, plotId: number, txHash: string, waterIncrease: number = 40) {
+export async function updateAfterWater(walletAddress: string, plotId: number, txHash: string, waterIncrease: number = 90) {
   const userRef = getUserDoc(walletAddress);
   const userSnap = await getDoc(userRef);
   if (!userSnap.exists()) return;
@@ -553,4 +553,34 @@ export async function updateAfterRevive(walletAddress: string, plotId: number, t
       : plot
   );
   await setDoc(userRef, { plots: updatedPlots, recentActivity }, { merge: true });
+}
+
+/**
+ * Decrease water level by 1% every 2 minutes for all plots
+ * This function should be called periodically (e.g., every 2 minutes)
+ */
+export async function decreaseWaterLevels(walletAddress: string) {
+  const userRef = getUserDoc(walletAddress);
+  const userSnap = await getDoc(userRef);
+  if (!userSnap.exists()) return;
+  
+  const userData = userSnap.data();
+  const plots = userData.plots || [];
+  
+  const updatedPlots = plots.map((plot: any) => {
+    if (plot.status === 'empty' || plot.status === 'withering') {
+      return plot; // Don't decrease water for empty or withering plots
+    }
+    
+    const currentWaterLevel = plot.waterLevel || 0;
+    const newWaterLevel = Math.max(0, currentWaterLevel - 1); // Decrease by 1%, minimum 0
+    
+    return {
+      ...plot,
+      waterLevel: newWaterLevel,
+      status: newWaterLevel < 20 ? 'needs_water' : plot.status // Update status if water level is too low
+    };
+  });
+  
+  await setDoc(userRef, { plots: updatedPlots }, { merge: true });
 } 
