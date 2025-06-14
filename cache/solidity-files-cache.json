@@ -227,8 +227,8 @@
       ]
     },
     "E:\\farming\\contracts\\SomniaFarming.sol": {
-      "lastModificationDate": 1749760763127,
-      "contentHash": "7b077355b2ada181eef62ff1aed5c28d",
+      "lastModificationDate": 1749920387542,
+      "contentHash": "efcbbc68c468dc826d5e90a2a89efe9a",
       "sourceName": "contracts/SomniaFarming.sol",
       "solcConfig": {
         "version": "0.8.24",

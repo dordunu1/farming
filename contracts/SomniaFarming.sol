@@ -271,7 +271,7 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             id: FERTILIZER_SPREADER_ID,
             name: "Fertilizer Spreader",
             itemType: 1, // tool
-            priceETH: 1e18,
+            priceETH: 0, // RT-priced item
             paymentToken: address(0),
             baseReward: 0,
             baseGrowthTime: 0,

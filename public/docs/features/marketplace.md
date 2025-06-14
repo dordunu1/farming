@@ -11,7 +11,7 @@ The RiceRise Marketplace is your one-stop shop for seeds, tools, and farming equ
 
 ### Payment Methods
 - **Rice Tokens (RT)**: For energy boosters and some tools
-- **ETH/STT**: For seeds, tools, and bundles
+- **ETH**: For seeds, tools, and bundles
 
 ## Marketplace Categories
 

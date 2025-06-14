@@ -94,7 +94,11 @@ function TransactionModal({
       setTimeout(() => {
         (async () => {
           // Use ethers.js to fetch the latest on-chain plot data
-          const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
+          const provider = new ethers.providers.JsonRpcProvider(
+            import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
+              ? import.meta.env.VITE_RISE_RPC_URL 
+              : import.meta.env.VITE_RPC_URL
+          );
           const contract = new ethers.Contract(
             import.meta.env.VITE_FARMING_ADDRESS,
             RiseFarmingABI,
@@ -154,7 +158,11 @@ function TransactionModal({
       setTimeout(() => {
         (async () => {
           console.log('Harvesting: fetching on-chain plot data for plotId', plotId);
-          const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
+          const provider = new ethers.providers.JsonRpcProvider(
+            import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
+              ? import.meta.env.VITE_RISE_RPC_URL 
+              : import.meta.env.VITE_RPC_URL
+          );
           const contract = new ethers.Contract(
             import.meta.env.VITE_FARMING_ADDRESS,
             RiseFarmingABI,
@@ -222,7 +230,11 @@ function TransactionModal({
         (async () => {
           try {
             // Use ethers.js to fetch the latest on-chain plot data (optional, for sync)
-            const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RISE_RPC_URL);
+            const provider = new ethers.providers.JsonRpcProvider(
+              import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
+                ? import.meta.env.VITE_RISE_RPC_URL 
+                : import.meta.env.VITE_RPC_URL
+            );
             const contract = new ethers.Contract(
               import.meta.env.VITE_FARMING_ADDRESS,
               RiseFarmingABI,

@@ -30,6 +30,7 @@ const config = {
   etherscan: {
     apiKey: {
       'rise-testnet': 'empty',
+      'somnia-testnet': 'empty',
     },
     customChains: [
       {
@@ -38,6 +39,14 @@ const config = {
         urls: {
           apiURL: 'https://explorer.testnet.riselabs.xyz/api',
           browserURL: 'https://explorer.testnet.riselabs.xyz',
+        },
+      },
+      {
+        network: 'somnia-testnet',
+        chainId: 50312,
+        urls: {
+          apiURL: 'https://shannon-explorer.somnia.network/api',
+          browserURL: 'https://shannon-explorer.somnia.network',
         },
       },
     ],
