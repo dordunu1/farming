@@ -125,7 +125,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, provider);
       try {
-        const count = await contract.userItemBalances(address, FERTILIZER_SPREADER_ID);
+        const count = await contract.userItemBalances(inGameWallet.address, FERTILIZER_SPREADER_ID);
         setFertilizerCount(Number(count));
       } catch (e) {
         setFertilizerCount(0);
