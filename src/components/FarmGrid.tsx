@@ -406,6 +406,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
       setIsReviveSuccess(true);
       // Optionally refetch plots here
       refetchOnChainPlots();
+      setShowReviveModal(false);
     } catch (error: any) {
       setIsRevivePending(false);
       setIsReviveSuccess(false);

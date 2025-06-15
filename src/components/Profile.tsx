@@ -27,18 +27,29 @@ export default function Profile({
   walletAddress
 }: ProfileProps) {
   const { address } = useAccount();
+  // In-game wallet integration (move this up)
+  const { wallet: gameWallet, isLoading: walletLoading, error: walletError, refreshWallet } = useWallet(address || undefined);
   const [userStats, setUserStats] = React.useState<any>(null);
   const [farmValue, setFarmValue] = React.useState(0);
   const [questValue, setQuestValue] = React.useState(0);
   const [onChainRT, setOnChainRT] = React.useState<string | null>(null);
+  const [showSensitive, setShowSensitive] = useState(false);
+  const [balance, setBalance] = useState<string | null>(null);
+  // Set currency symbol as a constant based on environment
+  const currencySymbol =
+    import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA'
+      ? import.meta.env.VITE_CURRENCY_SYMBOL || 'STT'
+      : import.meta.env.VITE_RISE_CURRENCY_SYMBOL || 'ETH';
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
   // Fetch on-chain RT balance
   const { data: onChainRiceTokens } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI,
     functionName: 'riceTokens',
-    args: address ? [address] : undefined,
+    args: gameWallet?.address ? [gameWallet.address] : undefined,
   });
+
   // Claim RISE ERC20
   const claimRiseTokens = useWriteContract();
   React.useEffect(() => {
@@ -73,7 +84,7 @@ export default function Profile({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI,
     functionName: 'totalHarvests',
-    args: address ? [address] : undefined,
+    args: gameWallet?.address ? [gameWallet.address] : undefined,
   });
 
   // Use on-chain value for display
@@ -93,25 +104,14 @@ export default function Profile({
   // Calculate integer RT for claim logic
   const rtInt = Number(onChainRiceTokens || 0);
 
-  // In-game wallet integration
-  const { wallet: gameWallet, isLoading: walletLoading, error: walletError, refreshWallet } = useWallet(address || undefined);
-  const [showSensitive, setShowSensitive] = useState(false);
-  const [balance, setBalance] = useState<string | null>(null);
-  const [currencySymbol, setCurrencySymbol] = useState('ETH');
-  const [showWalletModal, setShowWalletModal] = useState(false);
-
-  // Determine chain and set RPC URL and currency symbol
+  // Determine chain and set RPC URL
   useEffect(() => {
     let rpcUrl = '';
-    let symbol = 'ETH';
     if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
       rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
-      symbol = import.meta.env.VITE_CURRENCY_SYMBOL || 'STT';
     } else {
       rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
-      symbol = import.meta.env.VITE_RISE_CURRENCY_SYMBOL || 'ETH';
     }
-    setCurrencySymbol(symbol);
 
     async function fetchBalance() {
       if (gameWallet?.address && rpcUrl) {
