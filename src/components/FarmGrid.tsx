@@ -8,10 +8,12 @@ import { db } from '../lib/firebase';
 import { updatePlotProgress, onUserDataSnapshot, getUserData } from '../lib/firebaseUser';
 import CircularProgressBar from './CircularProgressBar';
 import { marketItems } from './Marketplace';
-import { useContractWrite, useContractRead, useWaitForTransactionReceipt, useContractReads } from 'wagmi';
+import { useContractRead, useContractReads } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { useAccount } from 'wagmi';
 import type { Abi } from 'viem';
+import { useWallet as useInGameWallet } from '../hooks/useWallet';
+import { ethers } from 'ethers';
 
 // Define FERTILIZER_SPREADER_ID constant (should match Marketplace/Inventory)
 const FERTILIZER_SPREADER_ID = 12; // Fertilizer Spreader ID
@@ -103,31 +105,45 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const [showReviveModal, setShowReviveModal] = useState(false);
   const [transactionType, setTransactionType] = useState<'water' | 'harvest'>('water');
   const { address } = useAccount();
+  const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
   const [firestorePlots, setFirestorePlots] = useState<Plot[]>([]);
   const [firestoreEnergy, setFirestoreEnergy] = useState<number | null>(null);
 
-  // Contract write for revivePlot
-  const { writeContract: writeRevivePlot, data: reviveTxHash, isPending: isRevivePending } = useContractWrite();
-  const { isSuccess: isReviveSuccess } = useWaitForTransactionReceipt({ hash: reviveTxHash });
+  // Remove useContractWrite for revivePlot and related logic
+  // Refactor revivePlot to use ethers.js
+  const [isRevivePending, setIsRevivePending] = useState(false);
+  const [isReviveSuccess, setIsReviveSuccess] = useState(false);
+  const [reviveTxHash, setReviveTxHash] = useState<string | null>(null);
 
-  // Fetch user's fertilizer count from inventory
-  const { data: fertilizerCount } = useContractRead({
-    address: FARMING_ADDRESS,
-    abi: RiseFarmingABI as any,
-    functionName: 'userItemBalances',
-    args: address ? [address, FERTILIZER_SPREADER_ID] : undefined,
-  });
+  // Refactor fertilizerCount fetch to use ethers.js
+  const [fertilizerCount, setFertilizerCount] = useState<number>(0);
+  useEffect(() => {
+    async function fetchFertilizer() {
+      if (!inGameWallet) return;
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, provider);
+      try {
+        const count = await contract.userItemBalances(address, FERTILIZER_SPREADER_ID);
+        setFertilizerCount(Number(count));
+      } catch (e) {
+        setFertilizerCount(0);
+      }
+    }
+    if (address && inGameWallet) fetchFertilizer();
+  }, [address, inGameWallet]);
 
   // Fetch all plots from the contract
   const NUM_PLOTS = 16;
   const plotIds = Array.from({ length: NUM_PLOTS }, (_, i) => i + 1);
   const { data: onChainPlots, refetch: refetchOnChainPlots } = useContractReads({
-    contracts: address
+    contracts: inGameAddress
       ? plotIds.map((id) => ({
           address: FARMING_ADDRESS,
           abi: RiseFarmingABI as Abi,
           functionName: 'userPlots',
-          args: [address, id],
+          args: [inGameAddress, id],
         }))
       : []
   });
@@ -373,31 +389,29 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const maxPossibleYield = plots.length * maxYieldPerPlot;
   const farmValuePercent = maxPossibleYield > 0 ? Math.round((totalYield / maxPossibleYield) * 100) : 0;
 
-  // Placeholder: revivePlot function (to be wired to contract)
-  const revivePlot = (plotId: number) => {
-    if (!address) return;
-    writeRevivePlot({
-      address: FARMING_ADDRESS,
-      abi: RiseFarmingABI as any,
-      functionName: 'revivePlot',
-      args: [plotId],
-      account: address,
-    });
-  };
-
-  // Add this effect in FarmGrid
-  useEffect(() => {
-    if (isReviveSuccess) {
+  // Refactored revivePlot function
+  const revivePlot = async (plotId: number) => {
+    if (!address || !inGameWallet) return;
+    setIsRevivePending(true);
+    setIsReviveSuccess(false);
+    try {
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
+      const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+      const tx = await contract.revivePlot(plotId);
+      setReviveTxHash(tx.hash);
+      await tx.wait();
+      setIsRevivePending(false);
+      setIsReviveSuccess(true);
+      // Optionally refetch plots here
       refetchOnChainPlots();
+    } catch (error: any) {
+      setIsRevivePending(false);
+      setIsReviveSuccess(false);
+      alert('Revive transaction failed: ' + (error && error.message ? error.message : String(error)));
     }
-  }, [isReviveSuccess, refetchOnChainPlots]);
-
-  // Close revive modal after tx success
-  useEffect(() => {
-    if (isReviveSuccess && showReviveModal) {
-      setTimeout(() => setShowReviveModal(false), 1200);
-    }
-  }, [isReviveSuccess, showReviveModal]);
+  };
 
   return (
     <>
@@ -699,21 +713,12 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
             </div>
             <div className="mb-4 text-center">
               <span className="font-semibold">Fertilizer in Inventory: </span>
-              <span className="text-emerald-600 font-bold">{Number(fertilizerCount) || 0}</span>
+              <span className="text-emerald-600 font-bold">{fertilizerCount}</span>
             </div>
-            {Number(fertilizerCount) > 0 ? (
+            {fertilizerCount > 0 ? (
               <button
                 className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white p-3 rounded-xl font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-                onClick={() => {
-                  writeRevivePlot({
-                    address: FARMING_ADDRESS,
-                    abi: RiseFarmingABI as any,
-                    functionName: 'revivePlot',
-                    args: [selectedPlot],
-                    account: address,
-                  });
-                  // Do NOT close modal here; wait for tx to finish
-                }}
+                onClick={() => revivePlot(selectedPlot)}
                 disabled={isRevivePending}
               >
                 {isRevivePending ? 'Reviving...' : 'Apply Fertilizer to Revive'}

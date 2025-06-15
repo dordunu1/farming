@@ -6,6 +6,8 @@ import DailyRewardModal from './DailyRewardModal';
 import AchievementModal from './AchievementModal';
 import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, useContractReads } from 'wagmi';
 import { getUserData, onUserDataSnapshot, onRecentActivitySnapshot, Activity, Plot, resetDailyQuestsIfNeeded, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
+import { useWallet as useInGameWallet } from '../hooks/useWallet';
+import { ethers } from 'ethers';
 
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import type { Abi } from 'viem';
@@ -51,13 +53,15 @@ function HomeScreen({
   setTotalXP
 }: HomeScreenProps) {
   const { address } = useAccount();
+  const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
 
   // Fetch on-chain RT balance (move to top)
   const { data: onChainRiceTokens } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI,
     functionName: 'riceTokens',
-    args: address ? [address] : undefined,
+    args: inGameAddress ? [inGameAddress] : undefined,
   });
 
   // Add on-chain XP fetch (move to top)
@@ -65,7 +69,7 @@ function HomeScreen({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'totalXP',
-    args: address ? [address as `0x${string}`] : undefined,
+    args: inGameAddress ? [inGameAddress as `0x${string}`] : undefined,
   });
 
   const [showDailyReward, setShowDailyReward] = useState(false);
@@ -93,7 +97,7 @@ function HomeScreen({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userStreaks',
-    args: address ? [address as `0x${string}`] : undefined,
+    args: inGameAddress ? [inGameAddress as `0x${string}`] : undefined,
   });
   useEffect(() => {
     setDailyStreak(Number(streakData || 0));
@@ -104,7 +108,7 @@ function HomeScreen({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userEnergy',
-    args: address ? [address as `0x${string}`] : undefined,
+    args: inGameAddress ? [inGameAddress as `0x${string}`] : undefined,
   });
   useEffect(() => {
     setEnergy(Number(onChainEnergy || 0));
@@ -129,7 +133,7 @@ function HomeScreen({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'totalHarvests',
-    args: address ? [address as `0x${string}`] : undefined,
+    args: inGameAddress ? [inGameAddress as `0x${string}`] : undefined,
   });
   const totalHarvests = Number(onChainTotalHarvests || 0);
 
@@ -193,7 +197,7 @@ function HomeScreen({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userItemBalances',
-    args: address ? [address, WATERING_CAN_ID] : undefined,
+    args: inGameAddress ? [inGameAddress, WATERING_CAN_ID] : undefined,
   });
   useEffect(() => {
     setWaterCans(Number(waterCansData || 0));
@@ -208,12 +212,12 @@ function HomeScreen({
   // --- Quest Claimed State Refetch ---
   const claimedStatesRef = useRef<any>(null);
   const { data: claimedStates, refetch: refetchClaimedStates } = useContractReads({
-    contracts: address
+    contracts: inGameAddress
       ? questIds.map((id) => ({
           address: import.meta.env.VITE_FARMING_ADDRESS,
           abi: RiseFarmingABI as Abi,
           functionName: 'claimedQuests',
-          args: [address, id],
+          args: [inGameAddress, id],
         }))
       : [],
   });
@@ -306,18 +310,21 @@ function HomeScreen({
   }, [isQuestClaimSuccess, refetchClaimedStates, address, onChainRiceTokens, onChainXP, onChainTotalHarvests, onChainEnergy, streakData, dailyQuests, questClaimData]);
 
   // Update the quest claim button click handler
-  const handleQuestClaim = (questId: number) => {
-    if (!address) return;
+  const handleQuestClaim = async (questId: number) => {
+    if (!inGameWallet || !inGameAddress) return;
     setClaimingQuestId(questId);
-    const txObj = {
-      address: import.meta.env.VITE_FARMING_ADDRESS,
-      abi: RiseFarmingABI as any,
-      functionName: 'claimQuestReward',
-      args: [BigInt(questId)],
-      account: address as `0x${string}`,
-    };
-    console.log('Calling claimQuestReward with:', txObj);
-    writeQuestClaim(txObj);
+    try {
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
+      const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+      const tx = await contract.claimQuestReward(BigInt(questId), { gasLimit: 300000 });
+      await tx.wait();
+      setClaimingQuestId(null);
+    } catch (err: any) {
+      setClaimingQuestId(null);
+      alert('Claim quest failed: ' + (err && err.message ? err.message : String(err)));
+    }
   };
 
   useEffect(() => {
@@ -362,19 +369,20 @@ function HomeScreen({
   // Add state for claimable, lastClaimed, and timer
   const [canClaimEnergy, setCanClaimEnergy] = useState(false);
   const [claimCountdown, setClaimCountdown] = useState(0);
-  const { writeContract: writeClaimEnergy, data: claimTxHash, isPending: isClaimPending } = useContractWrite();
-  const { isSuccess: isClaimSuccess } = useWaitForTransactionReceipt({ hash: claimTxHash });
+  const [isClaimPending, setIsClaimPending] = useState(false);
+  const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
+  const [isClaimSuccess, setIsClaimSuccess] = useState(false);
   const { data: hasClaimedInitialEnergy } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'hasClaimedInitialEnergy',
-    args: address ? [address] : undefined,
+    args: inGameAddress ? [inGameAddress] : undefined,
   });
   const { data: lastClaimedEnergy } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'lastEnergyClaim',
-    args: address ? [address] : undefined,
+    args: inGameAddress ? [inGameAddress] : undefined,
   });
   // Timer logic
   useEffect(() => {
@@ -413,14 +421,24 @@ function HomeScreen({
     return () => clearInterval(interval);
   }, [lastClaimedEnergy, hasClaimedInitialEnergy]);
   // Claim handler
-  const handleClaimEnergy = () => {
-    writeClaimEnergy({
-      address: import.meta.env.VITE_FARMING_ADDRESS,
-      abi: RiseFarmingABI as any,
-      functionName: 'claimInitialEnergy',
-      args: [],
-      account: address,
-    });
+  const handleClaimEnergy = async () => {
+    if (!inGameWallet || !inGameAddress) return;
+    setIsClaimPending(true);
+    setIsClaimSuccess(false);
+    try {
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
+      const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+      const tx = await contract.claimInitialEnergy({ gasLimit: 200000 });
+      setClaimTxHash(tx.hash);
+      await tx.wait();
+      setIsClaimPending(false);
+      setIsClaimSuccess(true);
+    } catch (err: any) {
+      setIsClaimPending(false);
+      alert('Claim energy failed: ' + (err && err.message ? err.message : String(err)));
+    }
   };
 
   useEffect(() => {
@@ -437,7 +455,7 @@ function HomeScreen({
         time: new Date().toISOString(),
         reward: '+10 Energy',
         color: 'yellow',
-        txHash: claimTxHash,
+        txHash: claimTxHash || undefined,
       }, {
         riceTokens: Number(onChainRiceTokens),
         totalXP: Number(onChainXP),
@@ -596,7 +614,7 @@ function HomeScreen({
               <Target className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-gray-800">Daily Quests</h3>
+              <h3 className="text-xl font-bold text-gray-800">Quests</h3>
               <p className="text-gray-600 text-sm">Complete quests to earn bonus rewards</p>
             </div>
           </div>
@@ -652,16 +670,16 @@ function HomeScreen({
                     <Sparkle className="w-5 h-5 mr-1" />+{quest.reward} RT
                   </span>
                 </div>
-                {quest.completed && !quest.claimed && (
+                {quest.completed && !Boolean(claimedStates?.[quest.id - 1]?.result) && (
                   <button
-                    className="mt-3 w-full bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 rounded-xl transition-colors"
+                    className="mt-3 w-full bg-yellow-400 hover:bg-yellow-500 text-white font-bold py-2 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                     onClick={() => handleQuestClaim(quest.id)}
-                    disabled={isQuestClaimPending || quest.claimed || claimingQuestId === quest.id}
+                    disabled={isQuestClaimPending || Boolean(claimedStates?.[quest.id - 1]?.result) || claimingQuestId === quest.id}
                   >
-                    {isQuestClaimPending && claimingQuestId === quest.id ? 'Claiming...' : 'Claim'}
+                    {claimingQuestId === quest.id && isQuestClaimPending ? 'Claiming...' : 'Claim'}
                   </button>
                 )}
-                {quest.completed && quest.claimed && (
+                {quest.completed && Boolean(claimedStates?.[quest.id - 1]?.result) && (
                   <div className="mt-3 text-green-600 font-semibold text-center">Claimed!</div>
                 )}
               </motion.div>

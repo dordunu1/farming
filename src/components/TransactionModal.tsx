@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap, Info } from 'lucide-react';
-import { useAccount, useContractWrite, useWaitForTransactionReceipt, useContractRead } from 'wagmi';
+import { useAccount, useContractRead } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { updateAfterWater, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, updateAfterRevive } from '../lib/firebaseUser';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { ethers } from 'ethers';
+import { useWallet as useInGameWallet } from '../hooks/useWallet';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -47,20 +48,18 @@ function TransactionModal({
   const [transactionStatus, setTransactionStatus] = useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const [txHash, setTxHash] = useState('');
   const { address } = useAccount();
+  const { wallet: inGameWallet } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
   const hasUpdatedRef = useRef(false);
   const [onChainPlot, setOnChainPlot] = useState<any>(null);
 
-  // Contract write for waterCrop
-  const { writeContract, data: waterTxHash, isPending: isWaterPending, isError: isWaterError } = useContractWrite();
-  const { isSuccess: isWaterSuccess } = useWaitForTransactionReceipt({ hash: waterTxHash });
-
   // Fetch on-chain plot state for harvest logic
-  const shouldFetch = isOpen && !!address && plotId !== null && typeof plotId === 'number';
+  const shouldFetch = isOpen && !!inGameAddress && plotId !== null && typeof plotId === 'number';
   const { data: fetchedPlot } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userPlots',
-    args: shouldFetch ? [address as `0x${string}`, plotId as number] : undefined,
+    args: shouldFetch ? [inGameAddress as `0x${string}`, plotId as number] : undefined,
   });
 
   const currentPlot = plots.find((p: any) => p.id === plotId);
@@ -70,14 +69,14 @@ function TransactionModal({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'userToolUses',
-    args: address ? [address, GOLDEN_HARVESTER_SINGLE_ID] : undefined,
+    args: inGameAddress ? [inGameAddress, GOLDEN_HARVESTER_SINGLE_ID] : undefined,
   });
 
   const { data: onChainRiceTokens } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'riceTokens',
-    args: address ? [address] : undefined,
+    args: inGameAddress ? [inGameAddress] : undefined,
   });
 
   // Add on-chain XP fetch
@@ -85,11 +84,11 @@ function TransactionModal({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'totalXP',
-    args: address ? [address] : undefined,
+    args: inGameAddress ? [inGameAddress] : undefined,
   });
 
   React.useEffect(() => {
-    if (type === 'water' && isWaterSuccess && address && plotId && waterTxHash && !hasUpdatedRef.current) {
+    if (type === 'water' && transactionStatus === 'success' && address && plotId && txHash && !hasUpdatedRef.current) {
       hasUpdatedRef.current = true;
       setTimeout(() => {
         (async () => {
@@ -104,7 +103,7 @@ function TransactionModal({
             RiseFarmingABI,
             provider
           );
-          const latestPlot = await contract.userPlots(address, plotId);
+          const latestPlot = await contract.userPlots(inGameAddress, plotId);
           const plantedAt = Number(latestPlot.plantedAt);
           const readyAt = Number(latestPlot.readyAt);
           const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address);
@@ -118,7 +117,6 @@ function TransactionModal({
                 : plot
             );
             await setDoc(userRef, { plots: updatedPlots }, { merge: true });
-            console.log('Firestore updated after watering:', { plotId, plantedAt, readyAt });
           }
         })();
       }, 1000);
@@ -129,10 +127,10 @@ function TransactionModal({
           : plot
       );
       setPlots(updatedPlots);
-      updateAfterWater(address, plotId, waterTxHash, 90).then(() => {
+      updateAfterWater(address, plotId, txHash, 90).then(() => {
         setEnergy(energy - 5); // Only deduct energy after success
         setTransactionStatus('success');
-        setTxHash(waterTxHash);
+        setTxHash(txHash);
         // Log and sync activity after water
         if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
           logAndSyncUserActivity(address, {
@@ -141,7 +139,7 @@ function TransactionModal({
             time: new Date().toISOString(),
             reward: '+0 RT',
             color: 'blue',
-            txHash: waterTxHash,
+            txHash: txHash,
           }, {
             riceTokens: Number(onChainRiceTokens),
             totalXP: Number(onChainXP),
@@ -157,7 +155,6 @@ function TransactionModal({
     if (type === 'harvest' && transactionStatus === 'success' && address && plotId && currentPlot) {
       setTimeout(() => {
         (async () => {
-          console.log('Harvesting: fetching on-chain plot data for plotId', plotId);
           const provider = new ethers.providers.JsonRpcProvider(
             import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
               ? import.meta.env.VITE_RISE_RPC_URL 
@@ -168,8 +165,7 @@ function TransactionModal({
             RiseFarmingABI,
             provider
           );
-          const latestPlot = await contract.userPlots(address, plotId);
-          console.log('Harvesting: latestPlot', latestPlot);
+          const latestPlot = await contract.userPlots(inGameAddress, plotId);
           const state = Number(latestPlot.state);
           const needsFertilizer = Boolean(latestPlot.needsFertilizer);
           const harvestedAt = Number(latestPlot.harvestedAt);
@@ -186,7 +182,6 @@ function TransactionModal({
             // Count harvested plots
             const harvestedCount = updatedPlots.filter((p: any) => p.status === 'empty' && p.cropType !== '').length;
             await setDoc(userRef, { plots: updatedPlots, numHarvested: harvestedCount }, { merge: true });
-            console.log('Firestore updated after harvest:', { plotId, state, needsFertilizer, harvestedAt, numHarvested: harvestedCount });
           }
         })();
       }, 1000);
@@ -212,7 +207,7 @@ function TransactionModal({
             time: new Date().toISOString(),
             reward: `+${actualYield} RT`,
             color: 'green',
-            txHash: waterTxHash,
+            txHash: txHash,
           }, {
             riceTokens: Number(onChainRiceTokens),
             totalXP: Number(onChainXP),
@@ -240,7 +235,7 @@ function TransactionModal({
               RiseFarmingABI,
               provider
             );
-            const latestPlot = await contract.userPlots(address, plotId);
+            const latestPlot = await contract.userPlots(inGameAddress, plotId);
             const state = Number(latestPlot.state);
             const needsFertilizer = Boolean(latestPlot.needsFertilizer);
             const harvestedAt = Number(latestPlot.harvestedAt);
@@ -248,7 +243,7 @@ function TransactionModal({
             const readyAt = Number(latestPlot.readyAt);
 
             // Instead of direct Firestore update, call updateAfterRevive
-            await updateAfterRevive(address, plotId, waterTxHash);
+            await updateAfterRevive(address, plotId, txHash);
             // Optionally update local state if needed (fetch latest from Firestore or reset in memory)
             // Log and sync activity is handled in updateAfterRevive
             setTimeout(() => {
@@ -262,7 +257,7 @@ function TransactionModal({
         })();
       }, 1000);
     }
-  }, [type, isWaterSuccess, address, plotId, waterTxHash, onClose, energy, setPlots, transactionStatus, currentPlot, onChainRiceTokens, onChainXP]);
+  }, [type, transactionStatus, address, plotId, txHash, onClose, energy, setPlots, currentPlot, onChainRiceTokens, onChainXP, inGameAddress]);
 
   React.useEffect(() => {
     if (fetchedPlot) setOnChainPlot(fetchedPlot);
@@ -271,7 +266,7 @@ function TransactionModal({
   // Reset hasUpdatedRef when a new transaction starts
   React.useEffect(() => {
     hasUpdatedRef.current = false;
-  }, [waterTxHash]);
+  }, [txHash]);
 
   React.useEffect(() => {
     if (transactionStatus === 'success' && type === 'harvest') {
@@ -281,14 +276,14 @@ function TransactionModal({
 
   // Add this effect to close the modal after a successful harvest
   useEffect(() => {
-    if (type === 'harvest' && isWaterSuccess && transactionStatus === 'pending') {
+    if (type === 'harvest' && transactionStatus === 'success') {
       setTransactionStatus('success');
       setTimeout(() => {
         onClose();
         setTransactionStatus('idle');
       }, 1500);
     }
-  }, [type, isWaterSuccess, transactionStatus, onClose]);
+  }, [type, transactionStatus, onClose]);
 
   const showEnergyWarning = energy < 2; // Warning when energy is below 2
   const energyCost = type === 'water' ? 1 : 1; // Both actions cost 1 energy now
@@ -301,30 +296,32 @@ function TransactionModal({
       alert('Not enough energy!');
       return;
     }
-    if (type === 'water') {
-      if (typeof plotId === 'number' && waterCans > 0) {
-        setTransactionStatus('pending');
-        console.log('Calling waterCrop with:', { plotId, address });
-        writeContract({
-          address: import.meta.env.VITE_FARMING_ADDRESS,
-          abi: RiseFarmingABI as any,
-          functionName: 'waterCrop',
-          args: [plotId],
-          account: address,
-        });
+    if (!inGameWallet) return;
+    setTransactionStatus('pending');
+    try {
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
+      const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+      
+      if (type === 'water') {
+        if (typeof plotId === 'number' && waterCans > 0) {
+          const tx = await contract.waterCrop(plotId);
+          setTxHash(tx.hash);
+          await tx.wait();
+          setTransactionStatus('success');
+        }
+      } else if (type === 'harvest') {
+        if (typeof plotId === 'number') {
+          const tx = await contract.harvestWithGoldenHarvester(plotId);
+          setTxHash(tx.hash);
+          await tx.wait();
+          setTransactionStatus('success');
+        }
       }
-    } else if (type === 'harvest') {
-      if (typeof plotId === 'number') {
-        setTransactionStatus('pending');
-        console.log('Calling harvestWithGoldenHarvester with:', { plotId, address });
-        writeContract({
-          address: import.meta.env.VITE_FARMING_ADDRESS,
-          abi: RiseFarmingABI as any,
-          functionName: 'harvestWithGoldenHarvester',
-          args: [plotId],
-          account: address,
-        });
-      }
+    } catch (err: any) {
+      setTransactionStatus('error');
+      console.error('Transaction error:', err.message);
     }
   };
 

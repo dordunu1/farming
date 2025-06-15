@@ -85,6 +85,7 @@ export interface UserData {
   recentActivity: Activity[];
   pfp: string; // DiceBear avatar URL
   lastQuestReset?: number;
+  inGameWalletAddress?: string;
 }
 
 // XP thresholds for each level (index = level)
@@ -122,6 +123,7 @@ export async function createUserIfNotExists(walletAddress: string, defaultData: 
   if (!userSnap.exists()) {
     await setDoc(userRef, {
       walletAddress: walletAddress,
+      inGameWalletAddress: defaultData.inGameWalletAddress || '',
       chainId: CURRENT_CHAIN,
       riceTokens: 0,
       energy: 0,

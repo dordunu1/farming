@@ -17,6 +17,10 @@ import GlobalFarm from './components/GlobalFarm';
 import WalletModal from './components/WalletModal';
 import { auth } from './lib/firebase';
 import { signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
+import { walletService } from './services/walletService';
+import { useWallet } from './hooks/useWallet';
+import { setDoc } from 'firebase/firestore';
+import { getUserDoc } from './lib/firebase';
 
 function App() {
   const [activeTab, setActiveTab] = useState('farm');
@@ -76,6 +80,9 @@ function App() {
     }
   }, [isConnected, address, firebaseAuthReady]);
 
+  const { initGameWallet, wallet: gameWallet } = useWallet();
+  const [isGeneratingWallet, setIsGeneratingWallet] = useState(false);
+
   useEffect(() => {
     if (isSuccess && signature && address && !firebaseAuthReady) {
       // Authenticate with backend
@@ -87,17 +94,39 @@ function App() {
         .then(res => res.json())
         .then(async (data) => {
           if (data.token) {
-            
             signInWithCustomToken(auth, data.token)
-              .then((userCredential) => {
-                
-                createUserIfNotExists(userCredential.user.uid);
+              .then(async (userCredential) => {
+                await createUserIfNotExists(userCredential.user.uid);
                 setFirebaseAuthReady(true);
                 setIsSigned(true);
                 setAuthError(null);
+
+                // Generate in-game wallet using the same signature
+                try {
+                  setIsGeneratingWallet(true);
+                  
+                  // Store the signature first for future wallet regeneration
+                  await walletService.storeSignature(userCredential.user.uid, signature);
+                  
+                  const gameWallet = await initGameWallet(signature);
+                  
+                  // Store the game wallet info
+                  if (gameWallet && gameWallet.address) {
+                    await walletService.storeWalletInfo(userCredential.user.uid, gameWallet);
+                    // Always update Firestore with the in-game wallet address
+                    await setDoc(getUserDoc(userCredential.user.uid), {
+                      inGameWalletAddress: gameWallet.address
+                    }, { merge: true });
+                  } else {
+                    setAuthError('Failed to generate game wallet');
+                  }
+                } catch (error) {
+                  setAuthError('Failed to generate game wallet');
+                } finally {
+                  setIsGeneratingWallet(false);
+                }
               })
               .catch((error) => {
-                console.error('Error signing in:', error, error.code, error.message);
                 setAuthError(error.message);
               });
           } else {
@@ -108,7 +137,7 @@ function App() {
           setAuthError('Auth error: ' + err.message);
         });
     }
-  }, [isSuccess, signature, address, firebaseAuthReady]);
+  }, [isSuccess, signature, address, firebaseAuthReady, initGameWallet]);
 
   useEffect(() => {
     if (!isConnected) {
@@ -166,6 +195,14 @@ function App() {
     }
   }, [address, isSigned, firebaseAuthReady]);
 
+  useEffect(() => {
+    if (gameWallet && gameWallet.address && address) {
+      setDoc(getUserDoc(address), {
+        inGameWalletAddress: gameWallet.address
+      }, { merge: true });
+    }
+  }, [gameWallet, address]);
+
   if (!isConnected) {
     // Enhanced connect overlay
     return (
@@ -218,17 +255,29 @@ function App() {
               <p className="text-xs text-gray-500">Blockchain Farming</p>
             </div>
           </div>
-          <h2 className="text-xl font-extrabold text-emerald-700 mb-2 mt-2">Sign In to Continue</h2>
+          <h2 className="text-xl font-extrabold text-emerald-700 mb-2 mt-2">
+            {isGeneratingWallet ? 'Setting Up Your Game Wallet' : 'Sign In to Continue'}
+          </h2>
           <p className="text-gray-700 text-center mb-6">
-            Please sign a message to prove you own your wallet. No transactions or fees required.
+            {isGeneratingWallet 
+              ? 'Please wait while we set up your game wallet...'
+              : 'Please sign a message to prove you own your wallet. No transactions or fees required.'}
           </p>
           <button
             onClick={() => signMessage({ message: 'Sign in to RiceRise' })}
-            disabled={isPending || (isSigned && !firebaseAuthReady)}
+            disabled={isPending || (isSigned && !firebaseAuthReady) || isGeneratingWallet}
             className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold text-lg disabled:opacity-60 shadow-md hover:bg-emerald-700 transition flex items-center justify-center gap-2"
           >
             {isPending ? (
               'Waiting for signature...'
+            ) : isGeneratingWallet ? (
+              <>
+                <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                </svg>
+                Setting up your game wallet...
+              </>
             ) : isSigned && !firebaseAuthReady ? (
               <>
                 <svg className="animate-spin h-5 w-5 mr-2 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

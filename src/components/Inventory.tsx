@@ -3,6 +3,7 @@ import { useAccount, useContractRead, useContractReads } from 'wagmi';
 import { useNavigate } from 'react-router-dom';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { marketItems, MarketItem } from './Marketplace';
+import { useWallet as useInGameWallet } from '../hooks/useWallet';
 
 const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS;
 
@@ -24,6 +25,9 @@ const getCardColor = (rarity: string) => {
 function Inventory() {
   const { address } = useAccount();
   const navigate = useNavigate();
+  const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
+  
   const itemIds = marketItems.map(item => item.id);
   // Only use seed IDs for bundle/single mapping
   const seedIds = marketItems.filter(item => item.category === 'seeds').map(item => item.id);
@@ -32,7 +36,7 @@ function Inventory() {
     address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'getUserInventory',
-    args: address ? [address, itemIds] : undefined,
+    args: inGameAddress ? [inGameAddress, itemIds] : undefined,
   });
   const balances: (bigint | number)[] = Array.isArray(balancesRaw) ? balancesRaw : [];
   // Fetch bundle and single seed counts for all seeds using useContractReads
@@ -41,7 +45,7 @@ function Inventory() {
       address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userBundleSeeds',
-      args: [address, id],
+      args: [inGameAddress, id],
     })),
   });
   const { data: singleSeedsRaw } = useContractReads({
@@ -49,7 +53,7 @@ function Inventory() {
       address: FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userSingleSeeds',
-      args: [address, id],
+      args: [inGameAddress, id],
     })),
   });
   // Map results to objects keyed by string seed ID
@@ -67,6 +71,32 @@ function Inventory() {
         <h2 className="text-2xl font-bold mb-2 text-gray-800">Your Inventory</h2>
         <p className="text-gray-500 text-center max-w-md mb-4">
           Connect your wallet to view your inventory.
+        </p>
+      </div>
+    );
+  }
+
+  // Show loading state while wallet is loading
+  if (walletLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Box className="w-16 h-16 text-emerald-400 mb-4 animate-spin" />
+        <h2 className="text-2xl font-bold mb-2 text-gray-800">Loading Wallet...</h2>
+        <p className="text-gray-500 text-center max-w-md mb-4">
+          Initializing your in-game wallet...
+        </p>
+      </div>
+    );
+  }
+
+  // Show error state if wallet failed to load
+  if (walletError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Box className="w-16 h-16 text-red-400 mb-4" />
+        <h2 className="text-2xl font-bold mb-2 text-gray-800">Wallet Error</h2>
+        <p className="text-red-500 text-center max-w-md mb-4">
+          Failed to load your in-game wallet: {walletError}
         </p>
       </div>
     );
@@ -90,7 +120,14 @@ function Inventory() {
 
   return (
     <div className="max-w-4xl mx-auto py-10">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">Your Inventory</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-3xl font-bold text-gray-800">Your Inventory</h2>
+        {inGameWallet && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-2 ml-4 text-green-700 font-medium flex items-center">
+            ✅ In-Game Wallet Connected: {inGameWallet.address.slice(0, 6)}...{inGameWallet.address.slice(-4)}
+          </div>
+        )}
+      </div>
       {inventory.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[40vh]">
           <Box className="w-16 h-16 text-emerald-400 mb-4" />

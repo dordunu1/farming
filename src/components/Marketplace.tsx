@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Zap, Droplets, Scissors, TrendingUp, Box, Info } from 'lucide-react';
-import { useContractReads, useContractWrite, useWaitForTransactionReceipt, useAccount, useContractRead } from 'wagmi';
+import { useContractReads, useWaitForTransactionReceipt, useAccount, useContractRead } from 'wagmi';
 import { useConnectModal } from '@rainbow-me/rainbowkit';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { addRecentActivity, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, getUserData, levelThresholds } from '../lib/firebaseUser';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, CURRENT_CHAIN } from '../lib/firebase';
+import { useWallet as useInGameWallet } from '../hooks/useWallet';
+import { ethers } from 'ethers';
 const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS as `0x${string}`;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`;
 const DURABLE_TOOL_IDS = [17, 18, 6]; // Golden Harvester (Single), Bundle, Auto-Watering System
@@ -315,6 +317,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const [showDetailsIdx, setShowDetailsIdx] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [processedTxs, setProcessedTxs] = useState<Set<string>>(new Set());
+  const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
 
   const itemIds = marketItems.map(item => item.id);
   const bundleIds = marketItems.filter(item => item.category === 'bundle').map(item => item.id);
@@ -406,48 +409,6 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     return matchesCategory && matchesSearch;
   });
 
-  // Contract write for single item (ETH)
-  const { writeContract: writeSingle } = useContractWrite({
-    mutation: {
-      onSuccess(data: any) {
-        setTxHash(data.hash || data);
-        setPending(true);
-      },
-      onError(error) {
-        setPending(false);
-        alert("Transaction failed: " + error.message);
-        console.error("writeSingle error:", error);
-      }
-    },
-  });
-  // Contract write for bundles (ETH)
-  const { writeContract: writeBundle } = useContractWrite({
-    mutation: {
-      onSuccess(data: any) {
-        setTxHash(data.hash || data);
-        setPending(true);
-      },
-      onError(error) {
-        setPending(false);
-        alert("Transaction failed: " + error.message);
-        console.error("writeBundle error:", error);
-      }
-    },
-  });
-  // Contract write for RT-priced items
-  const { writeContract: writeRT } = useContractWrite({
-    mutation: {
-      onSuccess(data: any) {
-        setTxHash(data.hash || data);
-        setPending(true);
-      },
-      onError(error) {
-        setPending(false);
-        alert("Transaction failed: " + error.message);
-        console.error("writeRT error:", error);
-      }
-    },
-  });
   // Wait for transaction
   const { isSuccess: txSuccess } = useWaitForTransactionReceipt({
     hash: txHash as `0x${string}` | undefined,
@@ -547,60 +508,66 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   };
 
   const handleConfirmBuy = async () => {
-    if (!selectedItem || !address) return;
+    if (!selectedItem || !address || !inGameWallet) return;
     setPending(true);
     setSuccess(false);
-    if (selectedItem.currency === NATIVE_SYMBOL) {
-      if (selectedItem.category === 'bundle') {
-        const bundle = bundleDataMap.get(selectedItem.id);
-        const priceETH = (bundle && Array.isArray(bundle) && bundle.length >= 7)
-          ? BigInt(bundle[2]) * BigInt(quantity)
-          : BigInt(0);
-        writeBundle({
-          address: FARMING_ADDRESS,
-          abi: RiseFarmingABI as any,
-          functionName: 'buyBundle',
-          args: [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
-          value: priceETH,
-          account: address,
-        });
-      } else {
-        // Fetch priceETH from contract data (itemsRaw)
-        const itemIdx = marketItems.findIndex(m => m.id === selectedItem.id);
-        let priceETH = 0n;
-        const itemRaw = itemsRaw?.[itemIdx];
-        if (itemRaw && typeof itemRaw === 'object' && 'result' in itemRaw && Array.isArray(itemRaw.result)) {
-          priceETH = BigInt(itemRaw.result[3] as string) * BigInt(quantity);
+    try {
+      // Get provider from env/config
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
+      let tx;
+      if (selectedItem.currency === NATIVE_SYMBOL) {
+        if (selectedItem.category === 'bundle') {
+          const bundle = bundleDataMap.get(selectedItem.id);
+          const priceETH = (bundle && Array.isArray(bundle) && bundle.length >= 7)
+            ? BigInt(bundle[2]) * BigInt(quantity)
+            : BigInt(0);
+          const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+          tx = await contract.buyBundle(
+            BigInt(selectedItem.id),
+            BigInt(quantity),
+            ZERO_ADDRESS,
+            { value: priceETH }
+          );
+        } else {
+          // Fetch priceETH from contract data (itemsRaw)
+          const itemIdx = marketItems.findIndex(m => m.id === selectedItem.id);
+          let priceETH = 0n;
+          const itemRaw = itemsRaw?.[itemIdx];
+          if (itemRaw && typeof itemRaw === 'object' && 'result' in itemRaw && Array.isArray(itemRaw.result)) {
+            priceETH = BigInt(itemRaw.result[3] as string) * BigInt(quantity);
+          }
+          const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+          tx = await contract.buyItem(
+            BigInt(selectedItem.id),
+            BigInt(quantity),
+            ZERO_ADDRESS,
+            { value: priceETH }
+          );
         }
-        writeSingle({
-          address: FARMING_ADDRESS,
-          abi: RiseFarmingABI as any,
-          functionName: 'buyItem',
-          args: [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
-          value: priceETH,
-          account: address,
-        });
+      } else if (selectedItem.currency === 'RT') {
+        const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+        if (selectedItem.id === 19) {
+          // Energy Booster: call the dedicated function
+          tx = await contract.buyEnergyBooster();
+        } else {
+          // Other RT-priced items
+          tx = await contract.buyItemWithGameRT(
+            BigInt(selectedItem.id),
+            BigInt(quantity)
+          );
+        }
       }
-    } else if (selectedItem.currency === 'RT') {
-      if (selectedItem.id === 19) {
-        // Energy Booster: call the dedicated function
-        writeRT({
-          address: FARMING_ADDRESS,
-          abi: RiseFarmingABI as any,
-          functionName: 'buyEnergyBooster',
-          args: [],
-          account: address,
-        });
-      } else {
-        // Other RT-priced items
-        writeRT({
-          address: FARMING_ADDRESS,
-          abi: RiseFarmingABI as any,
-          functionName: 'buyItemWithGameRT',
-          args: [BigInt(selectedItem.id), BigInt(quantity)],
-          account: address,
-        });
-      }
+      setTxHash(tx.hash);
+      setPending(true);
+      // Wait for transaction confirmation
+      await tx.wait();
+      setPending(false);
+      setSuccess(true);
+    } catch (error: any) {
+      setPending(false);
+      alert('Transaction failed: ' + (error?.message || error));
     }
   };
 

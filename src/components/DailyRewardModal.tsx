@@ -1,8 +1,10 @@
 import React from 'react';
 import { X, Gift, Calendar, Coins } from 'lucide-react';
-import { useContractWrite, useWaitForTransactionReceipt, useAccount, useContractReads } from 'wagmi';
+import { useAccount, useContractReads } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { addRecentActivity } from '../lib/firebaseUser';
+import { useWallet as useInGameWallet } from '../hooks/useWallet';
+import { ethers } from 'ethers';
 
 interface DailyRewardModalProps {
   isOpen: boolean;
@@ -13,6 +15,8 @@ const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS;
 
 function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   const { address } = useAccount();
+  const { wallet: inGameWallet } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
   const [status, setStatus] = React.useState<'idle' | 'pending' | 'success' | 'error'>('idle');
   const rewards = [
     { day: 1, reward: 1 },
@@ -26,19 +30,19 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
 
   // Always call the hook at the top level, use enabled to control fetching
   const result = useContractReads({
-    contracts: address
+    contracts: inGameAddress
       ? [
           {
             address: FARMING_ADDRESS,
             abi: RiseFarmingABI as any,
             functionName: 'userStreaks',
-            args: [address as `0x${string}`],
+            args: [inGameAddress as `0x${string}`],
           },
           {
             address: FARMING_ADDRESS,
             abi: RiseFarmingABI as any,
             functionName: 'lastClaimedDay',
-            args: [address as `0x${string}`],
+            args: [inGameAddress as `0x${string}`],
           },
         ]
       : [],
@@ -63,12 +67,14 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
     const sec = s % 60;
     return `${h}h ${m}m ${sec}s`;
   };
-  const { writeContract, data, isPending, isError } = useContractWrite();
-  const { isSuccess } = useWaitForTransactionReceipt({ hash: data });
+  const [txHash, setTxHash] = React.useState<string | null>(null);
+  const [isPending, setIsPending] = React.useState(false);
+  const [isSuccess, setIsSuccess] = React.useState(false);
+  const [isError, setIsError] = React.useState(false);
 
   // Fetch dailyRewardPaused flag
   const { data: dailyRewardPaused } = useContractReads({
-    contracts: address
+    contracts: inGameAddress
       ? [
           {
             address: FARMING_ADDRESS,
@@ -83,7 +89,7 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   React.useEffect(() => {
     if (isPending) setStatus('pending');
     if (isError) setStatus('error');
-    if (isSuccess && address && data) {
+    if (isSuccess && address && txHash) {
       setStatus('success');
       addRecentActivity(address, {
         icon: '🔥',
@@ -91,27 +97,39 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
         time: new Date().toLocaleString(),
         reward: `+${rewards[currentDay - 1].reward} RT`,
         color: 'bg-green-500',
-        txHash: data,
+        txHash: txHash,
       });
       setTimeout(() => {
         setStatus('idle');
         onClose();
       }, 2000);
     }
-  }, [isPending, isError, isSuccess, address, data, onClose]);
+  }, [isPending, isError, isSuccess, address, txHash, onClose]);
 
-  const handleClaim = () => {
-    if (!address) return;
-    writeContract({
-      address: FARMING_ADDRESS,
-      abi: RiseFarmingABI as any,
-      functionName: 'claimDailyReward',
-      args: [],
-      account: address as `0x${string}`,
-    });
+  const handleClaim = async () => {
+    if (!inGameWallet) return;
+    setIsPending(true);
+    setIsError(false);
+    setIsSuccess(false);
+    try {
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
+      const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+      const tx = await contract.claimDailyReward();
+      setTxHash(tx.hash);
+      await tx.wait();
+      setIsPending(false);
+      setIsSuccess(true);
+    } catch (err: any) {
+      setIsPending(false);
+      setIsError(true);
+      setStatus('error');
+      console.error('Claim daily reward error:', err.message);
+    }
   };
 
-  if (!isOpen || !address) return null;
+  if (!isOpen || !inGameAddress) return null;
   if (isLoadingUserData) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

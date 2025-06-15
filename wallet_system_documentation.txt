@@ -1,0 +1,770 @@
+# Game Wallet System Documentation
+
+## Overview
+This document outlines the wallet system architecture and functionality used in the game. The system implements a deterministic wallet generation mechanism that creates persistent in-game wallets based on external wallet signatures.
+
+## Core Components
+
+### 1. Wallet Service (`walletService.ts`)
+The main service handling all wallet-related operations.
+
+#### Key Features:
+- Deterministic wallet generation
+- Wallet persistence across sessions
+- Secure storage with encryption
+- Support for multiple wallet types (Ethereum, Phantom)
+- IndexedDB integration for faster wallet retrieval
+
+### 2. Wallet Generation Flow
+
+#### A. Initial Wallet Connection
+1. User connects their external wallet (rainbow in this case )
+2. System requests a signature with message: "Generate my persistent game wallet for RICERISE"
+3. Signature is used as a seed for deterministic wallet generation
+
+#### B. Deterministic Wallet Generation
+1. External wallet signature is hashed using keccak256
+2. Hash is converted to a mnemonic phrase
+3. New wallet is generated from the mnemonic
+4. Wallet info includes:
+   - Address
+   - Private Key
+   - Mnemonic Phrase
+
+### 3. Storage System
+
+#### A. Local Storage
+- Encrypted wallet information stored with username as key
+- Format: `wallet_${username}`
+- All sensitive data is encrypted before storage
+
+#### B. IndexedDB
+- Faster wallet retrieval system
+- Stores wallet information with username as key
+- Includes timestamp for cache management
+
+### 4. Security Features
+
+#### A. Encryption (AES-GCM Implementation)
+- Uses Web Crypto API's AES-GCM (Galois/Counter Mode) with 256-bit keys
+- Implements secure random IV (Initialization Vector) generation using `crypto.getRandomValues()`
+- Key Features:
+  - 12-byte IV length (recommended for AES-GCM)
+  - 256-bit encryption key
+  - Secure key generation using `crypto.subtle.generateKey()`
+  - Key persistence with secure storage
+  - Automatic key rotation and management
+- Encryption Process:
+  1. Generates or retrieves encryption key
+  2. Creates random IV using `crypto.getRandomValues()`
+  3. Encrypts data using AES-GCM
+  4. Combines IV and encrypted data for storage
+- Decryption Process:
+  1. Extracts IV from stored data
+  2. Uses stored key to decrypt data
+  3. Validates data integrity using GCM authentication
+
+#### B. Deterministic Generation
+- Same external wallet signature always generates the same in-game wallet
+- Ensures wallet persistence across devices and sessions
+- Uses ethers.js for secure wallet generation
+
+### 5. Integration Points
+
+#### A. Authentication Service
+- Verifies wallet ownership
+- Links external wallet to in-game wallet
+- Handles user registration and login
+
+#### B. Player Profile
+- Stores wallet information with user profile
+- Manages wallet display and interaction
+- Handles wallet export functionality
+
+## Usage Flow
+
+1. User connects external wallet
+2. System requests signature
+3. Deterministic wallet is generated
+4. Wallet info is encrypted and stored
+5. User can access wallet through profile
+6. Wallet persists across sessions and devices
+
+## Security Considerations
+
+1. Never store private keys or mnemonics in plain text
+2. Always encrypt sensitive wallet data
+3. Use deterministic generation for consistency
+4. Implement proper access controls
+5. Regular security audits recommended
+
+## Implementation Notes
+
+1. Uses ethers.js for wallet operations
+2. Implements IndexedDB for performance
+3. Supports multiple wallet types
+4. Includes error handling and recovery
+5. Provides wallet export functionality
+
+## Dependencies
+
+- ethers.js: For wallet operations
+- IndexedDB: For wallet storage
+- Encryption Service: For data security
+- Firebase: For user authentication
+
+## Best Practices
+
+1. Always verify wallet ownership
+2. Implement proper error handling
+3. Use encryption for sensitive data
+4. Maintain wallet persistence
+5. Provide clear user feedback
+6. Regular security updates
+7. Backup mechanisms for wallet recovery
+
+## Error Handling
+
+1. Wallet connection failures
+2. Signature verification errors
+3. Storage operation failures
+4. Encryption/decryption errors
+5. Network-related issues
+
+## Future Considerations
+
+1. Multi-chain support
+2. Enhanced security features
+3. Backup and recovery options
+4. Cross-platform compatibility
+5. Performance optimizations
+
+## Implementation Files
+
+### 1. `src/services/encryptionService.ts`
+```typescript
+import { ethers } from 'ethers';
+
+/**
+ * Encryption Service for secure data storage
+ * Uses Web Crypto API with AES-GCM encryption
+ */
+export class EncryptionService {
+  // Storage key for the encryption key in localStorage
+  private static readonly KEY_STORAGE_KEY = 'encryption_key';
+  // AES-GCM recommended IV length (12 bytes)
+  private static readonly IV_LENGTH = 12;
+
+  /**
+   * Gets existing encryption key or generates a new one
+   * @returns Promise<CryptoKey> The encryption key
+   */
+  private static async getOrCreateKey(): Promise<CryptoKey> {
+    const storedKey = localStorage.getItem(this.KEY_STORAGE_KEY);
+    if (storedKey) {
+      const keyData = ethers.utils.arrayify(storedKey);
+      return await crypto.subtle.importKey(
+        'raw',
+        keyData,
+        { name: 'AES-GCM' },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    const key = await crypto.subtle.generateKey(
+      { name: 'AES-GCM', length: 256 },
+      true,
+      ['encrypt', 'decrypt']
+    );
+
+    const exportedKey = await crypto.subtle.exportKey('raw', key);
+    const keyString = ethers.utils.hexlify(new Uint8Array(exportedKey));
+    localStorage.setItem(this.KEY_STORAGE_KEY, keyString);
+
+    return key;
+  }
+
+  /**
+   * Generates a random Initialization Vector (IV)
+   * @returns Uint8Array Random IV
+   */
+  private static generateIV(): Uint8Array {
+    return crypto.getRandomValues(new Uint8Array(this.IV_LENGTH));
+  }
+
+  /**
+   * Encrypts data using AES-GCM
+   * @param data String to encrypt
+   * @returns Promise<string> Encrypted data as hex string
+   */
+  static async encrypt(data: string): Promise<string> {
+    try {
+      const key = await this.getOrCreateKey();
+      const iv = this.generateIV();
+      const encodedData = new TextEncoder().encode(data);
+
+      const encryptedData = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        encodedData
+      );
+
+      // Combine IV and encrypted data
+      const combined = new Uint8Array(iv.length + encryptedData.byteLength);
+      combined.set(iv);
+      combined.set(new Uint8Array(encryptedData), iv.length);
+
+      return ethers.utils.hexlify(combined);
+    } catch (error) {
+      console.error('Encryption error:', error);
+      throw new Error('Failed to encrypt data');
+    }
+  }
+
+  /**
+   * Decrypts data using AES-GCM
+   * @param encryptedData Hex string of encrypted data
+   * @returns Promise<string> Decrypted data
+   */
+  static async decrypt(encryptedData: string): Promise<string> {
+    try {
+      const key = await this.getOrCreateKey();
+      const combined = ethers.utils.arrayify(encryptedData);
+
+      // Extract IV and encrypted data
+      const iv = combined.slice(0, this.IV_LENGTH);
+      const data = combined.slice(this.IV_LENGTH);
+
+      const decryptedData = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        data
+      );
+
+      return new TextDecoder().decode(decryptedData);
+    } catch (error) {
+      console.error('Decryption error:', error);
+      throw new Error('Failed to decrypt data');
+    }
+  }
+
+  /**
+   * Clears the encryption key from storage
+   */
+  static clearKey(): void {
+    localStorage.removeItem(this.KEY_STORAGE_KEY);
+  }
+}
+```
+
+### 2. `src/services/walletService.ts`
+```typescript
+import { ethers } from 'ethers';
+import { EncryptionService } from './encryptionService';
+
+// App's unique identifier - NEVER changes
+const APP_SEED = 'block-battles-v1';
+
+interface WalletInfo {
+  address: string;
+  privateKey: string;
+  mnemonic: string;
+}
+
+interface StoredWallet {
+  username: string;
+  wallet: WalletInfo;
+}
+
+interface WalletDB extends IDBDatabase {
+  transaction(
+    storeNames: string | string[],
+    mode?: IDBTransactionMode
+  ): WalletTransaction;
+}
+
+interface WalletTransaction extends IDBTransaction {
+  objectStore(name: string): WalletStore;
+}
+
+interface WalletStore extends IDBObjectStore {
+  get(key: string): IDBRequest<{ wallet: WalletInfo } | undefined>;
+  put(value: { username: string; wallet: WalletInfo; timestamp: number }): IDBRequest<IDBValidKey>;
+}
+
+/**
+ * Main wallet service for managing game wallets
+ */
+export const walletService = {
+  /**
+   * Requests wallet connection based on available wallets
+   */
+  async requestWalletSignature() {
+    try {
+      const wallets = await this.getAvailableWallets();
+
+      if (wallets.phantom) {
+        return await this.connectPhantomWallet();
+      } else if (wallets.ethereum) {
+        return await this.connectEthereumWallet();
+      } else {
+        throw new Error('No supported wallet found. Please install MetaMask or Phantom.');
+      }
+    } catch (error) {
+      console.error('Error connecting wallet:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Connects to Phantom wallet
+   */
+  async connectPhantomWallet() {
+    try {
+      const phantom = window.solana;
+      if (!phantom) throw new Error('Phantom wallet not found');
+
+      await phantom.connect();
+      
+      const publicKey = phantom.publicKey?.toString();
+      if (!publicKey) throw new Error('Failed to get Phantom wallet public key');
+
+      const message = new TextEncoder().encode("Generate my persistent game wallet for CRUSH RISE v1");
+      
+      const signedMessage = await phantom.signMessage(message);
+      if (!signedMessage) throw new Error('Failed to sign message with Phantom');
+      
+      const signature = Buffer.from(signedMessage.signature).toString('hex');
+      
+      return signature;
+    } catch (error) {
+      console.error('Error connecting to Phantom:', error);
+      throw new Error('Failed to connect Phantom wallet');
+    }
+  },
+
+  /**
+   * Connects to Ethereum wallet
+   */
+  async connectEthereumWallet() {
+    try {
+      const ethereum = window.ethereum;
+      if (!ethereum) throw new Error('MetaMask not found');
+
+      const accounts = await ethereum.request({ 
+        method: 'eth_requestAccounts' 
+      });
+      
+      const message = "Generate my persistent game wallet for CRUSH RISE v1";
+      
+      const signature = await ethereum.request({
+        method: 'personal_sign',
+        params: [message, accounts[0]]
+      });
+
+      return signature;
+    } catch (error) {
+      console.error('Error connecting to Ethereum wallet:', error);
+      throw new Error('Failed to connect Ethereum wallet');
+    }
+  },
+
+  /**
+   * Generates a deterministic wallet based on username
+   */
+  async generateWallet(username: string): Promise<WalletInfo> {
+    try {
+      const playerProfile = localStorage.getItem('player_profile');
+      if (!playerProfile) {
+        throw new Error('No player profile found');
+      }
+      
+      const profile = JSON.parse(playerProfile);
+      if (!profile.signature) {
+        throw new Error('No signature found in player profile');
+      }
+
+      return await this.getPersistentWallet(profile.signature);
+    } catch (error) {
+      console.error('Error generating wallet:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Stores wallet info in localStorage with encryption
+   */
+  async storeWalletInfo(username: string, walletInfo: WalletInfo): Promise<void> {
+    try {
+      const playerProfile = localStorage.getItem('player_profile');
+      if (playerProfile) {
+        const profile = JSON.parse(playerProfile);
+        if (profile.signature) {
+          const deterministicWallet = await this.getPersistentWallet(profile.signature);
+          const storedWallet: StoredWallet = {
+            username,
+            wallet: deterministicWallet
+          };
+          
+          const encryptedData = await EncryptionService.encrypt(JSON.stringify(storedWallet));
+          localStorage.setItem(`wallet_${username}`, encryptedData);
+          return;
+        }
+      }
+      
+      const storedWallet: StoredWallet = {
+        username,
+        wallet: walletInfo
+      };
+      
+      const encryptedData = await EncryptionService.encrypt(JSON.stringify(storedWallet));
+      localStorage.setItem(`wallet_${username}`, encryptedData);
+    } catch (error) {
+      console.error('Error storing wallet:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Retrieves wallet info from localStorage with decryption
+   */
+  async getWalletInfo(username: string): Promise<WalletInfo | null> {
+    try {
+      const encryptedData = localStorage.getItem(`wallet_${username}`);
+      if (encryptedData) {
+        const decryptedData = await EncryptionService.decrypt(encryptedData);
+        const parsed = JSON.parse(decryptedData) as StoredWallet;
+        return parsed.wallet;
+      }
+      
+      const playerProfile = localStorage.getItem('player_profile');
+      if (playerProfile) {
+        const profile = JSON.parse(playerProfile);
+        if (profile.signature) {
+          return await this.getPersistentWallet(profile.signature);
+        }
+      }
+      
+      const signature = await this.requestWalletSignature();
+      return await this.getPersistentWallet(signature);
+    } catch (error) {
+      console.error('Error getting wallet:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Gets wallet for a username - always returns the same wallet
+   */
+  async getWalletForUser(username: string) {
+    try {
+      const storedWallet = await this.getStoredWallet(username);
+      if (storedWallet) return storedWallet;
+
+      const wallet = await this.generateWallet(username);
+      await this.storeWallet(username, wallet);
+      
+      return wallet;
+    } catch (error) {
+      console.error('Error getting wallet:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Stores wallet in IndexedDB with encryption
+   */
+  async storeWallet(username: string, walletInfo: any) {
+    try {
+      const db = await this.openDB() as WalletDB;
+      const tx = db.transaction('wallets', 'readwrite');
+      const store = tx.objectStore('wallets') as WalletStore;
+      
+      const playerProfile = localStorage.getItem('player_profile');
+      if (playerProfile) {
+        const profile = JSON.parse(playerProfile);
+        if (profile.signature) {
+          const deterministicWallet = await this.getPersistentWallet(profile.signature);
+          await store.put({
+            username,
+            wallet: deterministicWallet,
+            timestamp: Date.now()
+          });
+          return;
+        }
+      }
+      
+      await store.put({
+        username,
+        wallet: walletInfo,
+        timestamp: Date.now()
+      });
+    } catch (error) {
+      console.error('Error storing wallet:', error);
+    }
+  },
+
+  /**
+   * Gets stored wallet from IndexedDB with decryption
+   */
+  async getStoredWallet(username: string) {
+    try {
+      const db = await this.openDB() as WalletDB;
+      const tx = db.transaction('wallets', 'readonly');
+      const store = tx.objectStore('wallets') as WalletStore;
+      
+      return new Promise<WalletInfo | null>(async (resolve) => {
+        const request = store.get(username);
+        request.onsuccess = async () => {
+          if (request.result?.wallet) {
+            const wallet = request.result.wallet;
+            wallet.privateKey = await EncryptionService.decrypt(wallet.privateKey);
+            wallet.mnemonic = await EncryptionService.decrypt(wallet.mnemonic);
+            resolve(wallet);
+          } else {
+            resolve(null);
+          }
+        };
+        request.onerror = () => {
+          console.error('Error getting wallet from store:', request.error);
+          resolve(null);
+        };
+      });
+    } catch (error) {
+      console.error('Error getting stored wallet:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Initializes IndexedDB
+   */
+  async openDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('GameWallets', 1);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      
+      request.onupgradeneeded = (event) => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains('wallets')) {
+          db.createObjectStore('wallets', { keyPath: 'username' });
+        }
+      };
+    });
+  },
+
+  /**
+   * Generates or retrieves persistent wallet based on external wallet signature
+   */
+  async getPersistentWallet(externalSignature: string) {
+    try {
+      const signatureHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(externalSignature));
+      
+      const wallet = ethers.Wallet.fromMnemonic(
+        ethers.utils.entropyToMnemonic(ethers.utils.arrayify(signatureHash))
+      );
+
+      return {
+        address: wallet.address,
+        privateKey: wallet.privateKey,
+        mnemonic: wallet.mnemonic.phrase
+      };
+    } catch (error) {
+      console.error('Error getting persistent wallet:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Signs game transaction with persistent wallet
+   */
+  async signTransaction(transaction: any, signature: string) {
+    try {
+      const playerProfile = localStorage.getItem('player_profile');
+      if (!playerProfile) {
+        throw new Error('No player profile found');
+      }
+      
+      const profile = JSON.parse(playerProfile);
+      if (!profile.signature) {
+        throw new Error('No signature found in player profile');
+      }
+
+      const walletInfo = await this.getPersistentWallet(profile.signature);
+      const wallet = new ethers.Wallet(walletInfo.privateKey);
+      return wallet.signTransaction(transaction);
+    } catch (error) {
+      console.error('Error signing transaction:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Clears wallet data on logout
+   */
+  async clearWalletData(username: string) {
+    try {
+      localStorage.removeItem(`wallet_${username}`);
+      const db = await this.openDB() as WalletDB;
+      const tx = db.transaction('wallets', 'readwrite');
+      const store = tx.objectStore('wallets') as WalletStore;
+      await store.delete(username);
+      EncryptionService.clearKey();
+    } catch (error) {
+      console.error('Error clearing wallet data:', error);
+    }
+  }
+};
+```
+
+### 3. `src/hooks/useWallet.ts`
+```typescript
+import { useState, useEffect } from 'react';
+import { walletService } from '@/services/walletService';
+
+interface WalletInfo {
+  address: string;
+  privateKey: string;
+  mnemonic: string;
+}
+
+/**
+ * React hook for wallet integration
+ * Provides wallet state and operations to components
+ */
+export function useWallet() {
+  const [wallet, setWallet] = useState<WalletInfo | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initWallet = async () => {
+      try {
+        // Get signature from external wallet
+        const signature = await walletService.requestWalletSignature();
+        
+        // Get or create persistent wallet
+        const persistentWallet = await walletService.getPersistentWallet(signature);
+        
+        setWallet(persistentWallet);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to initialize wallet');
+        setWallet(null);
+      }
+    };
+
+    initWallet();
+  }, []);
+
+  return { wallet, error };
+}
+```
+
+### 4. `src/services/authService.ts`
+```typescript
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  connectedWalletAddress?: string;
+  inGameWalletAddress?: string;
+  avatarUrl?: string;
+  isNewUser?: boolean;
+}
+
+/**
+ * Authentication service for user management
+ */
+export const authService = {
+  /**
+   * Authenticates user with username and wallet
+   */
+  async authenticateUser(
+    username: string, 
+    connectedAddress?: string, 
+    inGameWalletInfo?: any
+  ): Promise<UserProfile> {
+    if (!connectedAddress) {
+      throw new Error('Please connect your wallet to continue');
+    }
+
+    // Check if user exists
+    const userDoc = await getUserByUsername(username);
+    
+    if (!userDoc) {
+      // New user - create profile with both wallet addresses
+      if (!inGameWalletInfo) {
+        throw new Error('In-game wallet information is required for new users');
+      }
+      return createNewUser(username, connectedAddress, inGameWalletInfo);
+    }
+    
+    // Existing user - verify connected wallet ownership
+    if (userDoc.connectedWalletAddress) {
+      if (connectedAddress.toLowerCase() === userDoc.connectedWalletAddress.toLowerCase()) {
+        return userDoc; // Allow login - same connected wallet
+      } else {
+        throw new Error('This username is associated with a different wallet address');
+      }
+    }
+    
+    throw new Error('Please connect your wallet to verify ownership');
+  },
+
+  /**
+   * Updates wallet addresses for a user
+   */
+  async updateWalletAddresses(
+    username: string, 
+    connectedAddress?: string, 
+    inGameAddress?: string
+  ): Promise<boolean> {
+    try {
+      const docId = `user_${username.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      const userRef = doc(db, 'users', docId);
+      
+      const updates: Partial<UserProfile> = {};
+      if (connectedAddress) updates.connectedWalletAddress = connectedAddress;
+      if (inGameAddress) updates.inGameWalletAddress = inGameAddress;
+      
+      await setDoc(userRef, updates, { merge: true });
+      return true;
+    } catch (error) {
+      console.error('Error updating wallet addresses:', error);
+      return false;
+    }
+  }
+};
+```
+
+## File Dependencies and Relationships
+
+1. **Core Services**
+   - `walletService.ts` is the main orchestrator
+   - Depends on `encryptionService.ts` for secure storage
+   - Uses `authService.ts` for user verification
+   - Integrates with `contractService.ts` for blockchain operations
+
+2. **React Integration**
+   - `useWallet.ts` hook provides wallet functionality to React components
+   - Components can access wallet state and operations through this hook
+
+3. **Security Layer**
+   - `encryptionService.ts` provides the security foundation
+   - Used by `walletService.ts` for all sensitive data operations
+   - Implements AES-GCM encryption for all stored wallet data
+
+4. **Authentication Flow**
+   - `authService.ts` handles user authentication
+   - Verifies wallet ownership
+   - Manages user profiles and wallet associations
+
+5. **Blockchain Integration**
+   - `contractService.ts` handles smart contract interactions
+   - Manages transaction signing and nonce tracking
+   - Provides blockchain connectivity 

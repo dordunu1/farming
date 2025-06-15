@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { X, Plus, Coins, Clock, Zap, Star, Info } from 'lucide-react';
-import { useAccount, useContractRead, useContractWrite, useWaitForTransactionReceipt, useContractReads, usePublicClient } from 'wagmi';
+import { useAccount, useContractRead, useContractReads, usePublicClient } from 'wagmi';
+import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import { marketItems } from './Marketplace';
 import { updateAfterPlant } from '../lib/firebaseUser';
+import { ethers } from 'ethers';
 
 interface PlantModalProps {
   isOpen: boolean;
@@ -36,6 +38,8 @@ function parseYield(yieldStr: string) {
 
 function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlots }: PlantModalProps) {
   const { address } = useAccount();
+  const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
   const hasUpdatedRef = useRef(false);
   const [step, setStep] = useState<1 | 2>(1);
   const [showToast, setShowToast] = useState(false);
@@ -47,7 +51,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userBundleSeeds',
-      args: [address, id],
+      args: [inGameAddress, id],
     })),
   });
   const { data: singleSeedsRaw } = useContractReads({
@@ -55,7 +59,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       address: import.meta.env.VITE_FARMING_ADDRESS,
       abi: RiseFarmingABI as any,
       functionName: 'userSingleSeeds',
-      args: [address, id],
+      args: [inGameAddress, id],
     })),
   });
   // Map results to objects keyed by string seed ID
@@ -123,9 +127,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   const selectedSeed = ownedSeeds[selectedIdx] || ownedSeeds[0];
   const canPlant = selectedSeed && energy >= selectedSeed.energyCost && selectedSeed.total > 0;
 
-  // Planting contract write
-  const { writeContract, data: txHash, isPending } = useContractWrite();
-  const { isSuccess: txSuccess } = useWaitForTransactionReceipt({ hash: txHash });
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [isPending, setIsPending] = useState(false);
+  const [txSuccess, setTxSuccess] = useState(false);
 
   const publicClient = usePublicClient();
 
@@ -243,15 +247,24 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   }
 
   // Handle planting
-  const handlePlantSeed = () => {
-    if (!canPlant || !plotId || !selectedSeed) return;
-    writeContract({
-      address: import.meta.env.VITE_FARMING_ADDRESS,
-      abi: RiseFarmingABI as any,
-      functionName: 'plantSeed',
-      args: [plotId, selectedSeed.id],
-      account: address,
-    });
+  const handlePlantSeed = async () => {
+    if (!canPlant || !plotId || !selectedSeed || !inGameWallet) return;
+    setIsPending(true);
+    setTxSuccess(false);
+    try {
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
+      const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+      const tx = await contract.plantSeed(plotId, selectedSeed.id);
+      setTxHash(tx.hash);
+      await tx.wait();
+      setIsPending(false);
+      setTxSuccess(true);
+    } catch (err: any) {
+      setIsPending(false);
+      alert('Planting failed: ' + (err && err.message ? err.message : String(err)));
+    }
   };
 
   if (!isOpen) return null;
