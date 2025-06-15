@@ -552,7 +552,15 @@ export async function updateAfterRevive(walletAddress: string, plotId: number, t
         }
       : plot
   );
-  await setDoc(userRef, { plots: updatedPlots, recentActivity }, { merge: true });
+  // LOGGING
+  console.log('updateAfterRevive called for plotId:', plotId);
+  console.log('Updated plot:', updatedPlots.find((p: any) => p.id === plotId));
+  try {
+    await setDoc(userRef, { plots: updatedPlots, recentActivity }, { merge: true });
+    console.log('Firestore updateAfterRevive success');
+  } catch (e) {
+    console.error('Firestore updateAfterRevive error:', e);
+  }
 }
 
 /**
