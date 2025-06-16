@@ -21,6 +21,7 @@ import { walletService } from './services/walletService';
 import { useWallet } from './hooks/useWallet';
 import { setDoc } from 'firebase/firestore';
 import { getUserDoc } from './lib/firebase';
+import { ethers } from 'ethers';
 
 function App() {
   const [activeTab, setActiveTab] = useState('farm');
@@ -54,6 +55,11 @@ function App() {
   const [showNavOnboarding, setShowNavOnboarding] = useState(false);
   const [navOnboardingStep, setNavOnboardingStep] = useState(0);
   const navButtonRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
+  const [showWalletFundingToast, setShowWalletFundingToast] = useState(false);
+  const [hasShownWalletToast, setHasShownWalletToast] = useState(() => {
+    // Check if user has already seen the wallet funding toast
+    return localStorage.getItem('hasShownWalletFundingToast') === 'true';
+  });
 
   // Onboarding steps for nav bar
   const navSteps = [
@@ -202,6 +208,47 @@ function App() {
       }, { merge: true });
     }
   }, [gameWallet, address]);
+
+  // Show wallet funding toast when user has in-game wallet
+  useEffect(() => {
+    if (gameWallet && isConnected && !hasShownWalletToast) {
+      // Check if wallet has any balance
+      const checkWalletBalance = async () => {
+        try {
+          const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+          const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+          const balance = await provider.getBalance(gameWallet.address);
+          const balanceEth = ethers.utils.formatEther(balance);
+          
+          // Show toast if wallet has very low balance (less than 0.001 ETH)
+          if (parseFloat(balanceEth) < 0.001) {
+            setShowWalletFundingToast(true);
+            setHasShownWalletToast(true);
+            localStorage.setItem('hasShownWalletFundingToast', 'true');
+          }
+        } catch (error) {
+          console.log('Could not check wallet balance:', error);
+        }
+      };
+      
+      // Delay the toast to let the UI settle
+      const timer = setTimeout(() => {
+        checkWalletBalance();
+      }, 2000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [gameWallet, isConnected, hasShownWalletToast]);
+
+  // Hide wallet funding toast after 5 seconds
+  useEffect(() => {
+    if (showWalletFundingToast) {
+      const timer = setTimeout(() => {
+        setShowWalletFundingToast(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showWalletFundingToast]);
 
   if (!isConnected) {
     // Enhanced connect overlay
@@ -489,6 +536,10 @@ function App() {
                 onClick={() => {
                   setActiveTab(tab.id);
                   navigate(tab.route);
+                  // Hide wallet funding toast when user clicks on profile
+                  if (tab.id === 'profile') {
+                    setShowWalletFundingToast(false);
+                  }
                 }}
                 className={`flex flex-col items-center space-y-1 px-6 py-2 rounded-xl transition-all duration-200 relative ${
                   activeTab === tab.id 
@@ -503,6 +554,13 @@ function App() {
                     layoutId="activeTab"
                     className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-emerald-500 rounded-full"
                   />
+                )}
+                {/* Wallet Funding Toast - Show near Profile icon */}
+                {showWalletFundingToast && tab.id === 'profile' && (
+                  <div className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-blue-100 border border-blue-300 text-blue-900 px-4 py-2 rounded-xl shadow-lg z-50 font-medium text-sm whitespace-nowrap animate-fade-in">
+                    💰 Fund your in-game wallet for transactions!
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-blue-300"></div>
+                  </div>
                 )}
               </motion.button>
             ))}

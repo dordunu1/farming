@@ -372,6 +372,7 @@ function HomeScreen({
   const [isClaimPending, setIsClaimPending] = useState(false);
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
   const [isClaimSuccess, setIsClaimSuccess] = useState(false);
+  const [showEnergyClaimToast, setShowEnergyClaimToast] = useState(false);
   const { data: hasClaimedInitialEnergy } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
@@ -425,18 +426,21 @@ function HomeScreen({
     if (!inGameWallet || !inGameAddress) return;
     setIsClaimPending(true);
     setIsClaimSuccess(false);
+    setShowEnergyClaimToast(false);
     try {
       const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-      const tx = await contract.claimInitialEnergy({ gasLimit: 200000 });
+      const tx = await contract.claimInitialEnergy({ gasLimit: 500000 });
       setClaimTxHash(tx.hash);
       await tx.wait();
       setIsClaimPending(false);
       setIsClaimSuccess(true);
+      setShowEnergyClaimToast(true);
     } catch (err: any) {
       setIsClaimPending(false);
+      setShowEnergyClaimToast(false);
       alert('Claim energy failed: ' + (err && err.message ? err.message : String(err)));
     }
   };
@@ -466,6 +470,16 @@ function HomeScreen({
     }
   }, [isClaimSuccess, address, onChainRiceTokens, onChainXP, onChainTotalHarvests, onChainEnergy, streakData, claimTxHash]);
 
+  // Hide energy claim toast after 3 seconds
+  useEffect(() => {
+    if (showEnergyClaimToast) {
+      const timer = setTimeout(() => {
+        setShowEnergyClaimToast(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showEnergyClaimToast]);
+
   // Utility to truncate transaction hashes
   function truncateHash(hash?: string) {
     return hash ? `${hash.slice(0, 6)}...${hash.slice(-4)}` : '';
@@ -478,6 +492,18 @@ function HomeScreen({
       initial="hidden"
       animate="visible"
     >
+      {/* Energy Claim Toast */}
+      {showEnergyClaimToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-emerald-100 border border-emerald-300 text-emerald-900 px-6 py-3 rounded-xl shadow-lg z-50 font-semibold flex items-center gap-2 animate-fade-in">
+          ⚡ Energy claimed successfully! +10 Energy added to your balance.
+          {claimTxHash && (
+            <span className="text-xs font-mono ml-2 opacity-75">
+              ({truncateHash(claimTxHash)})
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Enhanced Stats Dashboard */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <motion.div 
