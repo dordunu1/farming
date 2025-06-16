@@ -137,6 +137,7 @@ export default function Profile({
 
   // Modal component
   function WalletModal() {
+    const [copied, setCopied] = useState(false);
     return ReactDOM.createPortal(
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowWalletModal(false)}>
         <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative" onClick={e => e.stopPropagation()}>
@@ -157,9 +158,13 @@ export default function Profile({
                 <span className="font-mono text-xs bg-gray-100 px-2 py-1 rounded">{gameWallet.address}</span>
                 <button
                   className="text-xs text-emerald-700 underline"
-                  onClick={() => navigator.clipboard.writeText(gameWallet.address)}
+                  onClick={() => {
+                    navigator.clipboard.writeText(gameWallet.address);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
                 >
-                  Copy
+                  {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
               <div className="text-xs text-gray-600 mb-2">{currencySymbol} Balance: {balance !== null ? `${balance} ${currencySymbol}` : '...'}</div>
