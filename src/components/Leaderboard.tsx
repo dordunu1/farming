@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Medal, Crown, TrendingUp, Users, Calendar, Star } from 'lucide-react';
-import { db, CURRENT_CHAIN } from '../lib/firebase';
+import { db, CURRENT_CHAIN, getChainCollection } from '../lib/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
 interface LeaderboardPlayer {
@@ -24,7 +24,7 @@ function Leaderboard() {
 
   useEffect(() => {
     async function fetchLeaderboard() {
-      const usersSnap = await getDocs(collection(db, CURRENT_CHAIN, 'users'));
+      const usersSnap = await getDocs(getChainCollection('users'));
       const users = usersSnap.docs.map(doc => doc.data());
       // Sort by totalHarvests, then by riceTokens
       const sorted = [...users].sort((a, b) => {
