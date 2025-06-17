@@ -8,6 +8,7 @@ import { doc, setDoc } from 'firebase/firestore';
 import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import { ethers } from 'ethers';
+import { shredsService, isRiseTestnet } from '../services/shredsService';
 const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS as `0x${string}`;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`;
 const DURABLE_TOOL_IDS = [17, 18, 6]; // Golden Harvester (Single), Bundle, Auto-Watering System
@@ -205,8 +206,8 @@ const marketItems: MarketItem[] = [
     rarity: 'common',
     icon: <Droplets className="w-6 h-6 text-blue-400" />,
     level: 1,
-    benefits: ['+90% water level', 'Improved crop quality'],
-    details: 'Use this tool to water your crops and keep them healthy. Each use increases water level by 90%.',
+    benefits: ['+100% water level', 'Improved crop quality'],
+    details: 'Use this tool to water your crops and keep them healthy. Each use increases water level by 100%.',
     supply: 50000
   },
   {
@@ -318,6 +319,14 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const [quantity, setQuantity] = useState(1);
   const [processedTxs, setProcessedTxs] = useState<Set<string>>(new Set());
   const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
+
+  // Initialize nonce management early for faster first transactions
+  useEffect(() => {
+    if (inGameWallet && isRiseTestnet()) {
+      // Pre-initialize nonce management using the dedicated function
+      shredsService.preInitializeNonce(inGameWallet.privateKey);
+    }
+  }, [inGameWallet]);
 
   const itemIds = marketItems.map(item => item.id);
   const bundleIds = marketItems.filter(item => item.category === 'bundle').map(item => item.id);
@@ -473,13 +482,20 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     }
   }, [txSuccess, selectedItem, address, txHash, quantity, itemsRaw, bundleDataMap, processedTxs]);
 
+  // Proper modal close handler that resets all state
+  const handleCloseModal = () => {
+    setBuyModalOpen(false);
+    setSelectedItem(null);
+    setPending(false);
+    setSuccess(false);
+    setTxHash(null);
+    setQuantity(1);
+  };
+
   // Close buy modal and reset state if wallet disconnects while modal is open
   useEffect(() => {
     if (!address && buyModalOpen) {
-      setBuyModalOpen(false);
-      setSelectedItem(null);
-      setPending(false);
-      setSuccess(false);
+      handleCloseModal();
     }
   }, [address, buyModalOpen]);
 
@@ -516,18 +532,24 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
-      let tx;
+      const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
+      
+      let result;
+      
       if (selectedItem.currency === NATIVE_SYMBOL) {
         if (selectedItem.category === 'bundle') {
           const bundle = bundleDataMap.get(selectedItem.id);
           const priceETH = (bundle && Array.isArray(bundle) && bundle.length >= 7)
             ? BigInt(bundle[2]) * BigInt(quantity)
             : BigInt(0);
-          const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-          tx = await contract.buyBundle(
-            BigInt(selectedItem.id),
-            BigInt(quantity),
-            ZERO_ADDRESS,
+          
+          // Use Shreds service for transaction
+          result = await shredsService.sendTransaction(
+            null, // transaction object not needed for this method
+            wallet,
+            contract,
+            'buyBundle',
+            [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
             { value: priceETH }
           );
         } else {
@@ -538,33 +560,68 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
           if (itemRaw && typeof itemRaw === 'object' && 'result' in itemRaw && Array.isArray(itemRaw.result)) {
             priceETH = BigInt(itemRaw.result[3] as string) * BigInt(quantity);
           }
-          const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-          tx = await contract.buyItem(
-            BigInt(selectedItem.id),
-            BigInt(quantity),
-            ZERO_ADDRESS,
+          
+          // Use Shreds service for transaction
+          result = await shredsService.sendTransaction(
+            null, // transaction object not needed for this method
+            wallet,
+            contract,
+            'buyItem',
+            [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
             { value: priceETH }
           );
         }
       } else if (selectedItem.currency === 'RT') {
-        const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
         if (selectedItem.id === 19) {
           // Energy Booster: call the dedicated function
-          tx = await contract.buyEnergyBooster();
+          result = await shredsService.sendTransaction(
+            null,
+            wallet,
+            contract,
+            'buyEnergyBooster',
+            [],
+            {}
+          );
         } else {
           // Other RT-priced items
-          tx = await contract.buyItemWithGameRT(
-            BigInt(selectedItem.id),
-            BigInt(quantity)
+          result = await shredsService.sendTransaction(
+            null,
+            wallet,
+            contract,
+            'buyItemWithGameRT',
+            [BigInt(selectedItem.id), BigInt(quantity)],
+            {}
           );
         }
       }
-      setTxHash(tx.hash);
-      setPending(true);
-      // Wait for transaction confirmation
-      await tx.wait();
-      setPending(false);
-      setSuccess(true);
+      
+      // Set transaction hash from result
+      if (result?.hash) {
+        setTxHash(result.hash as `0x${string}`);
+        // For Shreds transactions, update UI immediately
+        if (isRiseTestnet() && result.receipt?.transactionHash) {
+          setPending(false);
+          setSuccess(true);
+          // Auto-close modal after 2 seconds for Shreds transactions
+          setTimeout(() => {
+            handleCloseModal();
+          }, 2000);
+        } else {
+          // For standard transactions, wait for confirmation
+          setPending(true);
+          if (result.receipt?.wait) {
+            await result.receipt.wait();
+          }
+          setPending(false);
+          setSuccess(true);
+          // Auto-close modal after 2 seconds for standard transactions
+          setTimeout(() => {
+            handleCloseModal();
+          }, 2000);
+        }
+      } else {
+        throw new Error('Transaction failed: No result received');
+      }
     } catch (error: any) {
       setPending(false);
       alert('Transaction failed: ' + (error?.message || error));
@@ -611,19 +668,6 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   // Create a map from item ID to supply
   const supplyMap = new Map(marketItems.map((item: MarketItem, idx: number) => [item.id, supplies?.[idx] ?? '...']));
 
-  useEffect(() => {
-    if (txSuccess) {
-      setPending(false);
-      setSuccess(true);
-      // Optionally auto-close the modal after a short delay
-      // setTimeout(() => {
-      //   setSuccess(false);
-      //   setBuyModalOpen(false);
-      //   setSelectedItem(null);
-      // }, 2000);
-    }
-  }, [txSuccess]);
-
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
@@ -632,6 +676,16 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Marketplace</h1>
             <p className="text-gray-600">Upgrade your farm with premium seeds and tools</p>
+            {/* Shreds indicator */}
+            {isRiseTestnet() && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded-full">
+                  <span className="animate-pulse">⚡</span>
+                  <span>Shreds Enabled</span>
+                </div>
+                <span className="text-xs text-gray-500">Ultra-fast transactions (~5ms)</span>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             {/* Energy Display */}
@@ -818,7 +872,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       <BuyModal 
         open={buyModalOpen}
         item={selectedItem}
-        onClose={() => setBuyModalOpen(false)}
+        onClose={handleCloseModal}
         onConfirm={handleConfirmBuy}
         pending={pending}
         success={success}

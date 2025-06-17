@@ -8,6 +8,7 @@ import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { ethers } from 'ethers';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
+import { shredsService, isRiseTestnet } from '../services/shredsService';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -52,6 +53,8 @@ function TransactionModal({
   const inGameAddress = inGameWallet?.address;
   const hasUpdatedRef = useRef(false);
   const [onChainPlot, setOnChainPlot] = useState<any>(null);
+  const [showActionToast, setShowActionToast] = useState(false);
+  const [actionToastMsg, setActionToastMsg] = useState('');
 
   // Fetch on-chain plot state for harvest logic
   const shouldFetch = isOpen && !!inGameAddress && plotId !== null && typeof plotId === 'number';
@@ -123,11 +126,11 @@ function TransactionModal({
       // Update local plot state immediately
       const updatedPlots = plots.map((plot: any) =>
         plot.id === plotId
-          ? { ...plot, waterLevel: Math.min(100, (plot.waterLevel || 0) + 90), status: (plot.waterLevel || 0) + 90 > 80 ? 'watering' : 'growing' }
+          ? { ...plot, waterLevel: 100, status: 'watering' }
           : plot
       );
       setPlots(updatedPlots);
-      updateAfterWater(address, plotId, txHash, 90).then(() => {
+      updateAfterWater(address, plotId, txHash, 100).then(() => {
         setEnergy(energy - 5); // Only deduct energy after success
         setTransactionStatus('success');
         setTxHash(txHash);
@@ -304,20 +307,75 @@ function TransactionModal({
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
       
+      let result;
+      
       if (type === 'water') {
         if (typeof plotId === 'number' && waterCans > 0) {
-          const tx = await contract.waterCrop(plotId);
-          setTxHash(tx.hash);
-          await tx.wait();
-          setTransactionStatus('success');
+          // Use Shreds service for water transaction
+          result = await shredsService.sendTransaction(
+            null, // transaction object not needed for this method
+            wallet,
+            contract,
+            'waterCrop',
+            [plotId],
+            {}
+          );
+          // --- PATCH: Immediately update local plot state for waterLevel ---
+          if (result?.hash && address) {
+            (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+              plots.map((plot: any) =>
+                plot.id === plotId
+                  ? { ...plot, waterLevel: 100, status: 'watering' }
+                  : plot
+              )
+            );
+            updateAfterWater(address, plotId, result.hash, 100);
+          }
         }
       } else if (type === 'harvest') {
         if (typeof plotId === 'number') {
-          const tx = await contract.harvestWithGoldenHarvester(plotId);
-          setTxHash(tx.hash);
-          await tx.wait();
-          setTransactionStatus('success');
+          // Use Shreds service for harvest transaction
+          result = await shredsService.sendTransaction(
+            null, // transaction object not needed for this method
+            wallet,
+            contract,
+            'harvestWithGoldenHarvester',
+            [plotId],
+            {}
+          );
         }
+      }
+      
+      if (result?.hash) {
+        setTxHash(result.hash);
+        console.log('⚡ Transaction completed');
+        setTransactionStatus('success');
+        if (type === 'harvest' && result?.hash && address) {
+          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+            plots.map((plot: any) =>
+              plot.id === plotId
+                ? { ...plot, status: 'empty', waterLevel: 0, quality: 'poor' }
+                : plot
+            )
+          );
+          setActionToastMsg('🌾 Harvested! Tokens added to your balance.');
+          setShowActionToast(true);
+          setTimeout(() => setShowActionToast(false), 3000);
+        }
+        if (type === 'revive' && result?.hash && address) {
+          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+            plots.map((plot: any) =>
+              plot.id === plotId
+                ? { ...plot, status: 'empty', waterLevel: 0, quality: 'poor' }
+                : plot
+            )
+          );
+          setActionToastMsg('🪴 Plot revived! Ready to plant.');
+          setShowActionToast(true);
+          setTimeout(() => setShowActionToast(false), 3000);
+        }
+      } else {
+        throw new Error('Transaction failed: No result received');
       }
     } catch (err: any) {
       setTransactionStatus('error');
@@ -352,7 +410,7 @@ function TransactionModal({
         description: 'Water your rice crops to help them grow faster',
         icon: <Droplets className="w-8 h-8 text-blue-500" />,
         cost: '1 Energy',
-        benefit: '+90% water level, improved quality'
+        benefit: '+100% water level, improved quality'
       };
     } else {
       return {
@@ -623,6 +681,12 @@ function TransactionModal({
             >
               Try Again
             </button>
+          </div>
+        )}
+
+        {showActionToast && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-100 border border-green-300 text-green-900 px-6 py-3 rounded-xl shadow-lg z-50 font-semibold flex items-center gap-2 animate-fade-in">
+            {actionToastMsg}
           </div>
         )}
       </motion.div>

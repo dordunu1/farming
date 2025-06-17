@@ -27,6 +27,7 @@
     "react-router-dom": "^7.6.2",
     "react-syntax-highlighter": "^15.6.1",
     "remark-gfm": "^4.0.1",
+    "shreds": "^0.1.2",
     "viem": "^2.30.6",
     "wagmi": "^2.15.6"
   },

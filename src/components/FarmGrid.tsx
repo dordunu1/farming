@@ -14,6 +14,7 @@ import { useAccount } from 'wagmi';
 import type { Abi } from 'viem';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import { ethers } from 'ethers';
+import { shredsService, isRiseTestnet } from '../services/shredsService';
 
 // Define FERTILIZER_SPREADER_ID constant (should match Marketplace/Inventory)
 const FERTILIZER_SPREADER_ID = 12; // Fertilizer Spreader ID
@@ -109,6 +110,14 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const inGameAddress = inGameWallet?.address;
   const [firestorePlots, setFirestorePlots] = useState<Plot[]>([]);
   const [firestoreEnergy, setFirestoreEnergy] = useState<number | null>(null);
+
+  // Initialize nonce management early for faster first transactions
+  useEffect(() => {
+    if (inGameWallet && isRiseTestnet()) {
+      // Pre-initialize nonce management using the dedicated function
+      shredsService.preInitializeNonce(inGameWallet.privateKey);
+    }
+  }, [inGameWallet]);
 
   // Remove useContractWrite for revivePlot and related logic
   // Refactor revivePlot to use ethers.js
@@ -399,14 +408,28 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-      const tx = await contract.revivePlot(plotId);
-      setReviveTxHash(tx.hash);
-      await tx.wait();
-      setIsRevivePending(false);
-      setIsReviveSuccess(true);
-      // Optionally refetch plots here
-      refetchOnChainPlots();
-      setShowReviveModal(false);
+      
+      // Use Shreds service for transaction
+      const result = await shredsService.sendTransaction(
+        null, // transaction object not needed for this method
+        wallet,
+        contract,
+        'revivePlot',
+        [plotId],
+        {}
+      );
+      
+      if (result?.hash) {
+        setReviveTxHash(result.hash);
+        console.log('⚡ Plot revive transaction completed');
+        setIsRevivePending(false);
+        setIsReviveSuccess(true);
+        // Optionally refetch plots here
+        refetchOnChainPlots();
+        setShowReviveModal(false);
+      } else {
+        throw new Error('Transaction failed: No result received');
+      }
     } catch (error: any) {
       setIsRevivePending(false);
       setIsReviveSuccess(false);

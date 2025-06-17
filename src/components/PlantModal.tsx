@@ -7,6 +7,7 @@ import RiseFarmingABI from '../abi/RiseFarming.json';
 import { marketItems } from './Marketplace';
 import { updateAfterPlant } from '../lib/firebaseUser';
 import { ethers } from 'ethers';
+import { shredsService, isRiseTestnet } from '../services/shredsService';
 
 interface PlantModalProps {
   isOpen: boolean;
@@ -256,11 +257,27 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-      const tx = await contract.plantSeed(plotId, selectedSeed.id);
-      setTxHash(tx.hash);
-      await tx.wait();
-      setIsPending(false);
-      setTxSuccess(true);
+      
+      // Use Shreds service for transaction
+      const result = await shredsService.sendTransaction(
+        null, // transaction object not needed for this method
+        wallet,
+        contract,
+        'plantSeed',
+        [plotId, selectedSeed.id],
+        {}
+      );
+      
+      if (result?.hash) {
+        setTxHash(result.hash);
+        console.log('⚡ Plant seed transaction completed');
+        setIsPending(false);
+        setTxSuccess(true);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+      } else {
+        throw new Error('Transaction failed: No result received');
+      }
     } catch (err: any) {
       setIsPending(false);
       alert('Planting failed: ' + (err && err.message ? err.message : String(err)));

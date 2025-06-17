@@ -22,6 +22,7 @@ import { useWallet } from './hooks/useWallet';
 import { setDoc } from 'firebase/firestore';
 import { getUserDoc } from './lib/firebase';
 import { ethers } from 'ethers';
+import { shredsService } from './services/shredsService';
 
 function App() {
   const [activeTab, setActiveTab] = useState('farm');
@@ -60,6 +61,7 @@ function App() {
     // Check if user has already seen the wallet funding toast
     return localStorage.getItem('hasShownWalletFundingToast') === 'true';
   });
+  const [shredsStatus, setShredsStatus] = useState<any>(null);
 
   // Onboarding steps for nav bar
   const navSteps = [
@@ -278,6 +280,22 @@ function App() {
     }
   }, [showWalletFundingToast]);
 
+  // Initialize Shreds status
+  useEffect(() => {
+    const checkShredsStatus = () => {
+      const status = shredsService.getStatus();
+      setShredsStatus(status);
+    };
+    
+    // Check immediately
+    checkShredsStatus();
+    
+    // Check again after a delay to allow for initialization
+    const timer = setTimeout(checkShredsStatus, 2000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
   if (!isConnected) {
     // Enhanced connect overlay
     return (
@@ -409,7 +427,16 @@ function App() {
               <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
                 RiceRise
               </h1>
-              <p className="text-xs text-gray-500">Blockchain Farming</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-gray-500">Blockchain Farming</p>
+                {/* Shreds Status Indicator */}
+                {shredsStatus?.isRise && (
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs rounded-full">
+                    <span className="animate-pulse">⚡</span>
+                    <span>Shreds</span>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
           

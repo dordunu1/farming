@@ -8,6 +8,7 @@ import { useAccount, useContractRead, useContractWrite, useWaitForTransactionRec
 import { getUserData, onUserDataSnapshot, onRecentActivitySnapshot, Activity, Plot, resetDailyQuestsIfNeeded, logAndSyncUserActivity, getActivityIcon } from '../lib/firebaseUser';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import { ethers } from 'ethers';
+import { shredsService, isRiseTestnet } from '../services/shredsService';
 
 import RiseFarmingABI from '../abi/RiseFarming.json';
 import type { Abi } from 'viem';
@@ -55,6 +56,14 @@ function HomeScreen({
   const { address } = useAccount();
   const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
   const inGameAddress = inGameWallet?.address;
+
+  // Initialize nonce management early for faster first transactions
+  useEffect(() => {
+    if (inGameWallet && isRiseTestnet()) {
+      // Pre-initialize nonce management using the dedicated function
+      shredsService.preInitializeNonce(inGameWallet.privateKey);
+    }
+  }, [inGameWallet]);
 
   // Fetch on-chain RT balance (move to top)
   const { data: onChainRiceTokens } = useContractRead({
@@ -318,9 +327,27 @@ function HomeScreen({
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-      const tx = await contract.claimQuestReward(BigInt(questId), { gasLimit: 300000 });
-      await tx.wait();
-      setClaimingQuestId(null);
+      
+      // Use Shreds service for transaction
+      const result = await shredsService.sendTransaction(
+        null, // transaction object not needed for this method
+        wallet,
+        contract,
+        'claimQuestReward',
+        [BigInt(questId)],
+        { gasLimit: 300000 }
+      );
+      
+      if (result?.hash) {
+        console.log('⚡ Quest claim transaction completed');
+        setClaimingQuestId(null);
+        setClaimedQuestId(questId);
+        setShowQuestClaimToast(true);
+        // Update local quest state to claimed
+        setDailyQuests((prev) => prev.map(q => q.id === questId ? { ...q, claimed: true } : q));
+      } else {
+        throw new Error('Transaction failed: No result received');
+      }
     } catch (err: any) {
       setClaimingQuestId(null);
       alert('Claim quest failed: ' + (err && err.message ? err.message : String(err)));
@@ -432,12 +459,26 @@ function HomeScreen({
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-      const tx = await contract.claimInitialEnergy({ gasLimit: 500000 });
-      setClaimTxHash(tx.hash);
-      await tx.wait();
-      setIsClaimPending(false);
-      setIsClaimSuccess(true);
-      setShowEnergyClaimToast(true);
+      
+      // Use Shreds service for transaction
+      const result = await shredsService.sendTransaction(
+        null, // transaction object not needed for this method
+        wallet,
+        contract,
+        'claimInitialEnergy',
+        [],
+        { gasLimit: 500000 }
+      );
+      
+      if (result?.hash) {
+        setClaimTxHash(result.hash);
+        console.log('⚡ Energy claim transaction completed');
+        setIsClaimPending(false);
+        setIsClaimSuccess(true);
+        setShowEnergyClaimToast(true);
+      } else {
+        throw new Error('Transaction failed: No result received');
+      }
     } catch (err: any) {
       setIsClaimPending(false);
       setShowEnergyClaimToast(false);
@@ -480,6 +521,21 @@ function HomeScreen({
     }
   }, [showEnergyClaimToast]);
 
+  // Add state for quest claim toast
+  const [showQuestClaimToast, setShowQuestClaimToast] = useState(false);
+  const [claimedQuestId, setClaimedQuestId] = useState<number | null>(null);
+
+  // Hide quest claim toast after 3 seconds
+  useEffect(() => {
+    if (showQuestClaimToast) {
+      const timer = setTimeout(() => {
+        setShowQuestClaimToast(false);
+        setClaimedQuestId(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showQuestClaimToast]);
+
   // Utility to truncate transaction hashes
   function truncateHash(hash?: string) {
     return hash ? `${hash.slice(0, 6)}...${hash.slice(-4)}` : '';
@@ -501,6 +557,13 @@ function HomeScreen({
               ({truncateHash(claimTxHash)})
             </span>
           )}
+        </div>
+      )}
+
+      {/* Quest Claim Toast */}
+      {showQuestClaimToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-yellow-100 border border-yellow-300 text-yellow-900 px-6 py-3 rounded-xl shadow-lg z-50 font-semibold flex items-center gap-2 animate-fade-in">
+          🏆 Quest claimed! +{dailyQuests.find(q => q.id === claimedQuestId)?.reward} RT
         </div>
       )}
 

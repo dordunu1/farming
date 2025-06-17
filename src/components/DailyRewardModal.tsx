@@ -5,6 +5,7 @@ import RiseFarmingABI from '../abi/RiseFarming.json';
 import { addRecentActivity } from '../lib/firebaseUser';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import { ethers } from 'ethers';
+import { shredsService, isRiseTestnet } from '../services/shredsService';
 
 interface DailyRewardModalProps {
   isOpen: boolean;
@@ -18,6 +19,16 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   const { wallet: inGameWallet } = useInGameWallet(address);
   const inGameAddress = inGameWallet?.address;
   const [status, setStatus] = React.useState<'idle' | 'pending' | 'success' | 'error'>('idle');
+  const [showClaimToast, setShowClaimToast] = React.useState(false);
+  
+  // Initialize nonce management early for faster first transactions
+  React.useEffect(() => {
+    if (inGameWallet && isRiseTestnet()) {
+      // Pre-initialize nonce management using the dedicated function
+      shredsService.preInitializeNonce(inGameWallet.privateKey);
+    }
+  }, [inGameWallet]);
+  
   const rewards = [
     { day: 1, reward: 1 },
     { day: 2, reward: 2 },
@@ -116,11 +127,26 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
-      const tx = await contract.claimDailyReward();
-      setTxHash(tx.hash);
-      await tx.wait();
-      setIsPending(false);
-      setIsSuccess(true);
+      
+      // Use Shreds service for transaction
+      const result = await shredsService.sendTransaction(
+        null, // transaction object not needed for this method
+        wallet,
+        contract,
+        'claimDailyReward',
+        [],
+        {}
+      );
+      
+      if (result?.hash) {
+        setTxHash(result.hash);
+        setIsPending(false);
+        setIsSuccess(true);
+        setShowClaimToast(true);
+        setTimeout(() => setShowClaimToast(false), 3000);
+      } else {
+        throw new Error('Transaction failed: No result received');
+      }
     } catch (err: any) {
       setIsPending(false);
       setIsError(true);
@@ -211,6 +237,11 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
           <div className="text-yellow-600 text-center mt-2 font-semibold">Daily rewards are currently paused by the team.</div>
         )}
         {status === 'error' && <div className="text-red-500 text-center mt-2">Error claiming reward. Please try again.</div>}
+        {showClaimToast && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-green-100 border border-green-300 text-green-900 px-6 py-3 rounded-xl shadow-lg z-50 font-semibold flex items-center gap-2 animate-fade-in">
+            🎁 Daily reward claimed! +{reward} RT
+          </div>
+        )}
       </div>
     </div>
   );
