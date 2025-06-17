@@ -89,6 +89,34 @@ function App() {
   const { initGameWallet, wallet: gameWallet } = useWallet();
   const [isGeneratingWallet, setIsGeneratingWallet] = useState(false);
 
+  // Persistent wallet funding warning state
+  const [walletUnfunded, setWalletUnfunded] = useState(false);
+
+  // Check wallet balance every 10 seconds if unfunded
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    const checkWalletBalance = async () => {
+      if (gameWallet && isConnected) {
+        try {
+          const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+          const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+          const balance = await provider.getBalance(gameWallet.address);
+          const balanceEth = ethers.utils.formatEther(balance);
+          setWalletUnfunded(parseFloat(balanceEth) < 0.001);
+        } catch (error) {
+          setWalletUnfunded(true); // If error, be safe and show warning
+        }
+      } else {
+        setWalletUnfunded(false);
+      }
+    };
+    checkWalletBalance();
+    if (gameWallet && isConnected) {
+      interval = setInterval(checkWalletBalance, 10000); // 10 seconds
+    }
+    return () => { if (interval) clearInterval(interval); };
+  }, [gameWallet, isConnected]);
+
   useEffect(() => {
     if (isSuccess && signature && address && !firebaseAuthReady) {
       // Authenticate with backend
@@ -355,11 +383,19 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-yellow-50">
+      {/* Persistent Wallet Funding Warning */}
+      {walletUnfunded && (
+        <div className="w-full bg-yellow-200 border-b-2 border-yellow-400 text-yellow-900 text-center py-3 font-semibold text-sm z-50 fixed top-0 left-0 right-0 shadow-lg animate-fade-in">
+          ⚠️ Your in-game wallet has insufficient funds. Please fund your wallet to enable transactions.<br />
+          <span className="font-normal text-yellow-900">You can find your in-game wallet address under the <b>Profile</b> tab.</span>
+        </div>
+      )}
       {/* Enhanced Header */}
       <motion.header 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         className="bg-white/90 backdrop-blur-md border-b border-emerald-200 px-4 py-4 shadow-lg"
+        style={{ marginTop: walletUnfunded ? '48px' : '0' }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <motion.div 
