@@ -226,7 +226,7 @@ const marketItems: MarketItem[] = [
   },
 ];
 
-function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBreakdown, quantity, setQuantity }: { open: boolean, item: MarketItem | null, onClose: () => void, onConfirm: () => void, pending: boolean, success: boolean, bundleBreakdown?: string[], quantity: number, setQuantity: (q: number) => void }) {
+function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBreakdown, quantity, setQuantity, userRTBalance = 0 }: { open: boolean, item: MarketItem | null, onClose: () => void, onConfirm: () => void, pending: boolean, success: boolean, bundleBreakdown?: string[], quantity: number, setQuantity: (q: number) => void, userRTBalance?: number }) {
   const { address } = useAccount();
   const { data: userEnergy } = useContractRead({
     address: FARMING_ADDRESS,
@@ -282,13 +282,18 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
                   disabled={pending}
                 />
               </div>
+              {item.currency === 'RT' && (
+                <div className="text-red-500 text-sm mt-2">
+                  Insufficient RT balance. You need at least {item.usdPrice * quantity} RT to buy this item.
+                </div>
+              )}
             </div>
           )}
           {!success && (
             <button 
               onClick={onConfirm} 
-              disabled={pending || !address} 
-              className={`w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl mt-4 transition-opacity ${(pending || !address) ? 'opacity-60 cursor-not-allowed' : ''}`}
+              disabled={pending || !address || (item.currency === 'RT' && userRTBalance < item.usdPrice * quantity)} 
+              className={`w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl mt-4 transition-opacity ${(pending || !address || (item.currency === 'RT' && userRTBalance < item.usdPrice * quantity)) ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
               {pending ? 'Buying...' : isEnergyBooster ? 'Replenish Energy' : 'Buy Now'}
             </button>
@@ -879,6 +884,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         bundleBreakdown={selectedItem && selectedItem.category === 'bundle' ? selectedItem.benefits : undefined}
         quantity={quantity}
         setQuantity={setQuantity}
+        userRTBalance={onChainRiceTokens !== undefined ? Number(onChainRiceTokens) : 0}
       />
     </div>
   );

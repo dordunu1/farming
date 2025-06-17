@@ -348,7 +348,6 @@ function TransactionModal({
       
       if (result?.hash) {
         setTxHash(result.hash);
-        console.log('⚡ Transaction completed');
         setTransactionStatus('success');
         if (type === 'harvest' && result?.hash && address) {
           (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
@@ -379,7 +378,6 @@ function TransactionModal({
       }
     } catch (err: any) {
       setTransactionStatus('error');
-      console.error('Transaction error:', err.message);
     }
   };
 

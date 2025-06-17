@@ -421,7 +421,6 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
       
       if (result?.hash) {
         setReviveTxHash(result.hash);
-        console.log('⚡ Plot revive transaction completed');
         setIsRevivePending(false);
         setIsReviveSuccess(true);
         // Optionally refetch plots here
