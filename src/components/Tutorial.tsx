@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, Play, Wallet, Plus, Droplets, Scissors, Star } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Play, Wallet, Plus, Droplets, Scissors, Star, Zap } from 'lucide-react';
 
 interface TutorialProps {
   isOpen: boolean;
@@ -40,12 +40,17 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
           <div className="bg-blue-50 rounded-xl p-6 text-center">
             <Wallet className="w-16 h-16 text-blue-500 mx-auto mb-4" />
             <h4 className="font-semibold text-gray-800 mb-2">Why Connect a Wallet?</h4>
-            <ul className="text-sm text-gray-600 space-y-2 text-left">
+            <ul className="text-sm text-gray-600 space-y-2 text-left max-w-md mx-auto">
               <li>• Secure your rice tokens on-chain</li>
               <li>• Trade with other players</li>
               <li>• Participate in governance</li>
               <li>• Unlock premium features</li>
             </ul>
+            <div className="mt-6 bg-emerald-50 rounded-lg p-4 text-emerald-700 text-sm text-left max-w-md mx-auto">
+              <b>How it works:</b><br />
+              When you connect and sign a message for the first time, RiceRise will securely generate a special in-game wallet just for you. This wallet is used for all your in-game actions and is created safely from your signature—no need to remember a new password or key!<br /><br />
+              <span className="text-emerald-600">You stay in control, and your in-game wallet is always ready whenever you log in.</span>
+            </div>
           </div>
           <div className="bg-yellow-50 rounded-xl p-4">
             <p className="text-yellow-700 text-sm">
@@ -113,17 +118,29 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
               <div className="w-6 h-6 bg-green-400 rounded-full mx-auto mb-2"></div>
               <div className="text-xs font-medium">Basic Rice</div>
               <div className="text-xs text-gray-500">8h growth</div>
+              <div className="text-xs text-emerald-700">15 RT (Single)</div>
+              <div className="text-xs text-yellow-700">21 RT (Bundle, 4.8h)</div>
+              <div className="text-xs text-blue-500 mt-1">Min. Energy: 5</div>
             </div>
             <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
               <div className="w-6 h-6 bg-yellow-400 rounded-full mx-auto mb-2"></div>
               <div className="text-xs font-medium">Premium Rice</div>
               <div className="text-xs text-gray-500">6h growth</div>
+              <div className="text-xs text-emerald-700">50 RT (Single)</div>
+              <div className="text-xs text-yellow-700">60 RT (Bundle, 4.8h)</div>
+              <div className="text-xs text-blue-500 mt-1">Min. Energy: 10</div>
             </div>
             <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
               <div className="w-6 h-6 bg-purple-400 rounded-full mx-auto mb-2"></div>
               <div className="text-xs font-medium">Hybrid Rice</div>
               <div className="text-xs text-gray-500">4h growth</div>
+              <div className="text-xs text-emerald-700">70 RT (Single)</div>
+              <div className="text-xs text-yellow-700">84 RT (Bundle, 3.14h)</div>
+              <div className="text-xs text-blue-500 mt-1">Min. Energy: 20</div>
             </div>
+          </div>
+          <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700 text-center mt-2">
+            You must have at least the minimum energy shown above to plant each seed, but only <b>1 energy</b> will actually be deducted per planting.
           </div>
         </div>
       )
@@ -169,18 +186,30 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
           <div className="bg-yellow-50 rounded-xl p-6">
             <Scissors className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
             <h4 className="font-semibold text-gray-800 mb-3 text-center">Harvest Rewards</h4>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span>Basic Rice:</span>
-                <span className="font-bold text-emerald-600">100-150 RT</span>
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span>Basic Rice (Single):</span>
+                <span className="font-bold text-emerald-600">15 RT</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>Premium Rice:</span>
-                <span className="font-bold text-emerald-600">200-300 RT</span>
+              <div className="flex items-center justify-between">
+                <span>Basic Rice (Bundle):</span>
+                <span className="font-bold text-yellow-700">21 RT</span>
               </div>
-              <div className="flex items-center justify-between text-sm">
-                <span>Hybrid Rice:</span>
-                <span className="font-bold text-emerald-600">400-600 RT</span>
+              <div className="flex items-center justify-between">
+                <span>Premium Rice (Single):</span>
+                <span className="font-bold text-emerald-600">50 RT</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Premium Rice (Bundle):</span>
+                <span className="font-bold text-yellow-700">60 RT</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Hybrid Rice (Single):</span>
+                <span className="font-bold text-emerald-600">70 RT</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Hybrid Rice (Bundle):</span>
+                <span className="font-bold text-yellow-700">84 RT</span>
               </div>
             </div>
           </div>
@@ -227,23 +256,33 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
                   <Plus className="w-4 h-4 text-emerald-500" />
                   <span>Planting</span>
                 </span>
-                <span className="font-bold">10 Energy</span>
+                <span className="font-bold">1 Energy <span className="text-xs text-gray-500">(Min. 5/10/20 to plant)</span></span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center space-x-2">
                   <Droplets className="w-4 h-4 text-blue-500" />
                   <span>Watering</span>
                 </span>
-                <span className="font-bold">5 Energy</span>
+                <span className="font-bold">1 Energy</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="flex items-center space-x-2">
                   <Scissors className="w-4 h-4 text-yellow-500" />
                   <span>Harvesting</span>
                 </span>
-                <span className="font-bold">15 Energy</span>
+                <span className="font-bold">1 Energy</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="flex items-center space-x-2">
+                  <Zap className="w-4 h-4 text-green-500" />
+                  <span>Reviving</span>
+                </span>
+                <span className="font-bold">1 Energy</span>
               </div>
             </div>
+          </div>
+          <div className="bg-blue-50 rounded-xl p-4 text-xs text-blue-700 text-center">
+            You only spend 1 energy per action, but planting requires you to have a minimum energy depending on the seed type (5 for Basic, 10 for Premium, 20 for Hybrid).
           </div>
           <div className="bg-blue-50 rounded-xl p-4">
             <p className="text-blue-700 text-sm">
