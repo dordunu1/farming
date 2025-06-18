@@ -9,6 +9,7 @@ import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { ethers } from 'ethers';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import { shredsService, isRiseTestnet } from '../services/shredsService';
+import { useNavigate } from 'react-router-dom';
 
 interface TransactionModalProps {
   isOpen: boolean;
@@ -55,6 +56,7 @@ function TransactionModal({
   const [onChainPlot, setOnChainPlot] = useState<any>(null);
   const [showActionToast, setShowActionToast] = useState(false);
   const [actionToastMsg, setActionToastMsg] = useState('');
+  const navigate = useNavigate();
 
   // Fetch on-chain plot state for harvest logic
   const shouldFetch = isOpen && !!inGameAddress && plotId !== null && typeof plotId === 'number';
@@ -575,7 +577,7 @@ function TransactionModal({
             {type === 'water' && waterCans <= 0 && (
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-300 rounded-lg text-yellow-800 text-sm text-center">
                 <strong>You are out of Watering Cans!</strong><br />
-                <a href="/marketplace" className="underline text-blue-600 hover:text-blue-800">Buy more in the Marketplace</a>
+                <button onClick={() => navigate('/marketplace')} className="underline text-blue-600 hover:text-blue-800">Buy more in the Marketplace</button>
               </div>
             )}
 
@@ -588,13 +590,13 @@ function TransactionModal({
                 Cancel
               </button>
               {type === 'water' && waterCans <= 0 ? (
-                <a
-                  href="/marketplace"
+                <button
+                  onClick={() => navigate('/marketplace')}
                   className="flex-1 py-3 rounded-xl font-medium transition-all bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700 text-center"
                   style={{ display: 'block' }}
                 >
                   Buy Water Cans
-                </a>
+                </button>
               ) : (
                 <button
                   onClick={handleTransaction}

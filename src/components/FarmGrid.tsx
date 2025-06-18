@@ -15,6 +15,7 @@ import type { Abi } from 'viem';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import { ethers } from 'ethers';
 import { shredsService, isRiseTestnet } from '../services/shredsService';
+import { useNavigate } from 'react-router-dom';
 
 // Define FERTILIZER_SPREADER_ID constant (should match Marketplace/Inventory)
 const FERTILIZER_SPREADER_ID = 12; // Fertilizer Spreader ID
@@ -110,6 +111,7 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   const inGameAddress = inGameWallet?.address;
   const [firestorePlots, setFirestorePlots] = useState<Plot[]>([]);
   const [firestoreEnergy, setFirestoreEnergy] = useState<number | null>(null);
+  const navigate = useNavigate();
 
   // Initialize nonce management early for faster first transactions
   useEffect(() => {
@@ -747,12 +749,12 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
                 {isRevivePending ? 'Reviving...' : 'Apply Fertilizer to Revive'}
               </button>
             ) : (
-              <a
-                href="/marketplace"
+              <button
                 className="w-full block text-center bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-3 rounded-xl font-medium hover:from-yellow-500 hover:to-orange-600 transition-all duration-200 mt-2"
+                onClick={() => navigate('/marketplace')}
               >
                 Buy Fertilizer in Marketplace
-              </a>
+              </button>
             )}
           </div>
         </div>
