@@ -324,6 +324,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const [quantity, setQuantity] = useState(1);
   const [processedTxs, setProcessedTxs] = useState<Set<string>>(new Set());
   const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
 
   // Initialize nonce management early for faster first transactions
   useEffect(() => {
@@ -400,7 +401,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     address: FARMING_ADDRESS,
     abi: RiseFarmingABI as any,
     functionName: 'riceTokens',
-    args: address ? [address] : undefined,
+    args: inGameAddress ? [inGameAddress] : undefined,
   });
   const { data: onChainXP } = useContractRead({
     address: FARMING_ADDRESS,
@@ -845,11 +846,16 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                       e.stopPropagation();
                       handleBuy(item);
                     }}
-                    disabled={item.comingSoon || !isWalletConnected}
+                    disabled={item.comingSoon || !isWalletConnected || (item.currency === 'RT' && Number(onChainRiceTokens || 0) < item.usdPrice)}
                   >
                     Buy Now
                   </button>
                 </div>
+                {item.currency === 'RT' && isWalletConnected && (
+                  <div className="text-xs text-gray-500 mt-1 text-right">
+                    Your RT balance: <span className="font-bold">{Number(onChainRiceTokens || 0)}</span>
+                  </div>
+                )}
                 {item.comingSoon && (
                   <div className="text-xs text-red-500 font-semibold mt-1 mb-1">Coming Soon</div>
                 )}
