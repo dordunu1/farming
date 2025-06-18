@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Star, Coins, Trophy, CheckCircle, Wallet, X, Loader2 } from 'lucide-react';
+import { User, Star, Coins, Trophy, CheckCircle, Wallet, X, Loader2, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount, useWriteContract } from 'wagmi';
 // @ts-ignore
@@ -48,7 +48,7 @@ export default function Profile({
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
 
   // Fetch on-chain RT balance
-  const { data: onChainRiceTokens } = useContractRead({
+  const { data: onChainRiceTokens, refetch: refetchRiceTokens } = useContractRead({
     address: import.meta.env.VITE_FARMING_ADDRESS,
     abi: RiseFarmingABI,
     functionName: 'riceTokens',
@@ -211,6 +211,32 @@ export default function Profile({
     );
   }
 
+  // Helper to clear only app-specific keys from localStorage and IndexedDB
+  const clearAppCache = async () => {
+    // Remove app-specific keys from localStorage
+    const keysToRemove = [
+      'wallet_signature',
+      'inGameWallet',
+      'firebase:authUser',
+      'firebase:authUser:currentUser',
+      'hasShownWalletFundingToast',
+      // Add any other keys your app uses for session/wallet
+    ];
+    keysToRemove.forEach((key) => window.localStorage.removeItem(key));
+
+    // Optionally clear app-specific IndexedDB databases
+    if ('indexedDB' in window) {
+      const dbs = await window.indexedDB.databases?.();
+      if (dbs) {
+        for (const db of dbs) {
+          if (db.name && (db.name.startsWith('firebase') || db.name.startsWith('wallet'))) {
+            window.indexedDB.deleteDatabase(db.name);
+          }
+        }
+      }
+    }
+  };
+
   if (!isWalletConnected || !address) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto text-center">
@@ -245,13 +271,18 @@ export default function Profile({
   const progressPercentage = (currentLevelXP / 300) * 100;
 
   return (
-    <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 max-w-md mx-auto border border-gray-100 relative" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.10)' }}>
-      {/* Compact wallet status badge on the right */}
-      <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/80 border border-emerald-200 rounded-full px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm" style={{height: 28}}>
-        <Wallet className="w-4 h-4 text-emerald-500" />
-        Wallet Connected
-      </div>
-      {/* End top badges row */}
+    <div className="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto text-center relative">
+      {/* Logout button in top left */}
+      <button
+        className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-red-700 transition flex items-center gap-1"
+        onClick={async () => {
+          await clearAppCache();
+          window.AppKit?.disconnect?.();
+          window.location.reload();
+        }}
+      >
+        <LogOut className="w-4 h-4 mr-1" /> Logout
+      </button>
       <div className="text-center mb-6 mt-8">
         <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-emerald-200 shadow-lg bg-white/60 backdrop-blur">
           <img
@@ -266,7 +297,6 @@ export default function Profile({
             ? `${gameWallet.address.slice(0, 6)}...${gameWallet.address.slice(-4)}`
             : 'Loading...'}
         </p>
-        {/* Move In-Game Wallet Button here, centered under address */}
         <div className="flex justify-center mt-2">
           {walletLoading ? (
             <div className="flex items-center gap-1 bg-gray-100 text-gray-600 font-semibold rounded-full px-3 py-1 text-xs">
@@ -304,7 +334,6 @@ export default function Profile({
         </div>
       </div>
       <div className="space-y-4">
-        {/* Level Section */}
         <div className="bg-purple-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-purple-100 shadow-sm">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
@@ -323,7 +352,6 @@ export default function Profile({
             {currentLevelXP}/300 XP to next level
           </p>
         </div>
-        {/* Rice Tokens Section */}
         <div className="bg-yellow-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-yellow-100 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
@@ -337,7 +365,7 @@ export default function Profile({
             </div>
             <span className="text-2xl font-bold text-yellow-600 drop-shadow-sm">{onChainRT ?? '...'}</span>
           </div>
-          {/* Claim RISE button logic */}
+          
           {rtInt >= 500 ? (
             <>
               <button
@@ -352,12 +380,18 @@ export default function Profile({
                   setClaimError('');
                   setClaimTxHash(null);
                   try {
+                    console.log('🌾 Starting claim process...');
+                    console.log('In-game wallet address:', gameWallet.address);
+                    console.log('On-chain RT balance:', Number(onChainRiceTokens || 0));
+                    
                     const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
                     const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
                     const wallet = new ethers.Wallet(gameWallet.privateKey, provider);
                     const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI, wallet);
                     let txHash = null;
+                    
                     if (isRiseTestnet()) {
+                      console.log('🚀 Using Shreds for RISE claim...');
                       const overrides = { gasPrice: ethers.utils.parseUnits('1', 'gwei') };
                       const result = await shredsService.sendTransaction(
                         null,
@@ -368,15 +402,50 @@ export default function Profile({
                         overrides
                       );
                       txHash = result?.hash;
+                      console.log('✅ Shreds claim successful, tx hash:', txHash);
                     } else {
+                      console.log('🔗 Using standard ethers for claim...');
                       const tx = await contract.claimRiseTokens();
                       txHash = tx.hash;
                       await tx.wait();
+                      console.log('✅ Standard claim successful, tx hash:', txHash);
                     }
+                    
                     setClaimTxHash(txHash);
                     setClaimSuccess(true);
+                    
+                    // Refresh RT balance after successful claim
+                    console.log('🔄 Refreshing RT balance...');
+                    await refetchRiceTokens();
+                    
                   } catch (err: any) {
-                    setClaimError(err?.reason || err?.message || 'Claim failed');
+                    console.error('❌ Claim failed:', err);
+                    console.error('Error details:', {
+                      message: err?.message,
+                      reason: err?.reason,
+                      code: err?.code,
+                      data: err?.data,
+                      transaction: err?.transaction
+                    });
+                    
+                    // Show detailed error message
+                    let errorMsg = 'Claim failed';
+                    if (err?.reason) {
+                      errorMsg = err.reason;
+                    } else if (err?.message) {
+                      errorMsg = err.message;
+                    } else if (err?.data) {
+                      // Try to decode revert reason
+                      try {
+                        const iface = new ethers.utils.Interface(RiseFarmingABI);
+                        const decoded = iface.parseError(err.data);
+                        errorMsg = decoded.name + ': ' + decoded.args.join(', ');
+                      } catch (decodeErr) {
+                        errorMsg = 'Transaction reverted';
+                      }
+                    }
+                    
+                    setClaimError(errorMsg);
                   } finally {
                     setClaiming(false);
                   }
@@ -391,7 +460,11 @@ export default function Profile({
                   Claim successful!
                   {claimTxHash && (
                     <a
-                      href={`https://explorer.risewallet.io/tx/${claimTxHash}`}
+                      href={
+                        isRiseTestnet()
+                          ? `https://explorer.testnet.riselabs.xyz/tx/${claimTxHash}`
+                          : `https://shannon-explorer.somnia.network/tx/${claimTxHash}`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-blue-600 underline mt-1"
@@ -402,16 +475,20 @@ export default function Profile({
                 </div>
               )}
               {claimError && (
-                <div className="mt-2 text-red-600 text-xs">{claimError}</div>
+                <div className="mt-2 text-red-600 text-xs bg-red-50 p-2 rounded">
+                  <div className="font-semibold">Claim Error:</div>
+                  <div>{claimError}</div>
+                </div>
               )}
             </>
           ) : (
             <div className="mt-3 w-full text-center text-xs text-gray-500 bg-yellow-100/80 rounded-lg py-2">
               You need at least 500 RT to claim RISE tokens.
+              <br />
+              Current balance: {Number(onChainRiceTokens || 0)} RT
             </div>
           )}
         </div>
-        {/* Action Counters */}
         <div className="bg-blue-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-blue-100 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <Trophy className="w-5 h-5 text-blue-600" />
@@ -434,7 +511,6 @@ export default function Profile({
         </div>
       </div>
 
-      {/* Modal */}
       {showWalletModal && <WalletModal />}
     </div>
   );

@@ -640,7 +640,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
         uint256 amount = riceTokens[msg.sender];
         require(amount >= 500, "Must claim at least 500 RISE");
         riceTokens[msg.sender] = 0;
-        require(riseToken.transfer(msg.sender, amount), "Transfer failed");
+        uint256 transferAmount = amount * 1e18; // Convert to ERC20 decimals
+        require(riseToken.transfer(msg.sender, transferAmount), "Transfer failed");
         emit RiseClaimed(msg.sender, amount);
     }
     // Fallback to receive ETH

@@ -226,6 +226,14 @@ const marketItems: MarketItem[] = [
   },
 ];
 
+// Utility to safely convert to BigInt
+const safeBigInt = (val: any, fallback = 0n) => {
+  if (typeof val === 'bigint') return val;
+  if (typeof val === 'number' && !isNaN(val)) return BigInt(val);
+  if (typeof val === 'string' && val !== '' && !isNaN(Number(val))) return BigInt(val);
+  return fallback;
+};
+
 function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBreakdown, quantity, setQuantity, userRTBalance = 0 }: { open: boolean, item: MarketItem | null, onClose: () => void, onConfirm: () => void, pending: boolean, success: boolean, bundleBreakdown?: string[], quantity: number, setQuantity: (q: number) => void, userRTBalance?: number }) {
   const { address } = useAccount();
   const { data: userEnergy } = useContractRead({
@@ -284,7 +292,9 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
               </div>
               {item.currency === 'RT' && (
                 <div className="text-red-500 text-sm mt-2">
-                  Insufficient RT balance. You need at least {item.usdPrice * quantity} RT to buy this item.
+                  {userRTBalance < item.usdPrice * quantity && (
+                    <>Insufficient RT balance. You need at least {item.usdPrice * quantity} RT to buy this item.</>
+                  )}
                 </div>
               )}
             </div>
@@ -546,8 +556,8 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         if (selectedItem.category === 'bundle') {
           const bundle = bundleDataMap.get(selectedItem.id);
           const priceETH = (bundle && Array.isArray(bundle) && bundle.length >= 7)
-            ? BigInt(bundle[2]) * BigInt(quantity)
-            : BigInt(0);
+            ? safeBigInt(bundle[2]) * safeBigInt(quantity)
+            : 0n;
           
           // Use Shreds service for transaction
           result = await shredsService.sendTransaction(
@@ -555,7 +565,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             wallet,
             contract,
             'buyBundle',
-            [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
+            [safeBigInt(selectedItem.id), safeBigInt(quantity), ZERO_ADDRESS],
             { value: priceETH }
           );
         } else {
@@ -564,7 +574,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
           let priceETH = 0n;
           const itemRaw = itemsRaw?.[itemIdx];
           if (itemRaw && typeof itemRaw === 'object' && 'result' in itemRaw && Array.isArray(itemRaw.result)) {
-            priceETH = BigInt(itemRaw.result[3] as string) * BigInt(quantity);
+            priceETH = safeBigInt(itemRaw.result[3] as string) * safeBigInt(quantity);
           }
           
           // Use Shreds service for transaction
@@ -573,7 +583,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             wallet,
             contract,
             'buyItem',
-            [BigInt(selectedItem.id), BigInt(quantity), ZERO_ADDRESS],
+            [safeBigInt(selectedItem.id), safeBigInt(quantity), ZERO_ADDRESS],
             { value: priceETH }
           );
         }
@@ -595,7 +605,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             wallet,
             contract,
             'buyItemWithGameRT',
-            [BigInt(selectedItem.id), BigInt(quantity)],
+            [safeBigInt(selectedItem.id), safeBigInt(quantity)],
             {}
           );
         }

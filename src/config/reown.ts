@@ -1,15 +1,7 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
-import './index.css';
-import { BrowserRouter } from 'react-router-dom';
-import ReownProvider from './context/ReownProvider';
+import { cookieStorage, createStorage, http } from '@wagmi/core';
+import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 
-import '@rainbow-me/rainbowkit/styles.css';
-import { getDefaultConfig, RainbowKitProvider, lightTheme } from '@rainbow-me/rainbowkit';
-import { WagmiProvider } from 'wagmi';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
+// Dynamically build networks from env
 const riseTestnet = {
   id: parseInt(import.meta.env.VITE_RISE_CHAIN_ID),
   name: import.meta.env.VITE_RISE_NETWORK_NAME,
@@ -48,21 +40,16 @@ const somniaTestnet = {
   testnet: true,
 };
 
-const config = getDefaultConfig({
-  appName: 'RiceRise',
-  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
-  chains: [riseTestnet, somniaTestnet],
-  ssr: false,
+export const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
+if (!projectId) throw new Error('Project ID is not defined');
+
+export const networks = [riseTestnet, somniaTestnet] as [typeof riseTestnet, typeof somniaTestnet];
+
+export const wagmiAdapter = new WagmiAdapter({
+  storage: createStorage({ storage: cookieStorage }),
+  ssr: true,
+  projectId,
+  networks,
 });
 
-const queryClient = new QueryClient();
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ReownProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-    </ReownProvider>
-  </StrictMode>
-);
+export const config = wagmiAdapter.wagmiConfig; 

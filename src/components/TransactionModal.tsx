@@ -606,26 +606,40 @@ function TransactionModal({
                 >
                   Buy Water Cans
                 </button>
+              ) : type === 'harvest' ? (
+                <button
+                  onClick={
+                    !harvesterUses || Number(harvesterUses) <= 0
+                      ? () => navigate('/marketplace')
+                      : handleTransaction
+                  }
+                  disabled={
+                    (!harvesterUses || Number(harvesterUses) <= 0)
+                      ? false
+                      : (!canHarvestOnChain ||
+                         energy < energyCost ||
+                         transactionStatus === 'pending' ||
+                         (growing === false && cooldownPassed))
+                  }
+                  className="flex-1 py-3 rounded-xl font-medium transition-all bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700"
+                >
+                  {!harvesterUses || Number(harvesterUses) <= 0
+                    ? 'Buy on Marketplace'
+                    : (transactionStatus === 'pending' ? 'Harvesting…' : 'Confirm Harvest Rice')}
+                </button>
               ) : (
                 <button
                   onClick={handleTransaction}
                   disabled={
-                    type === 'harvest'
-                      ? (!canHarvestOnChain || energy < energyCost || transactionStatus === 'pending' || (growing === false && cooldownPassed) || !harvesterUses || Number(harvesterUses) <= 0)
-                      : (energy < energyCost || (type === 'water' && String(transactionStatus) === 'pending') || (type === 'water' && waterCans <= 0))
+                    energy < energyCost ||
+                    (type === 'water' && String(transactionStatus) === 'pending') ||
+                    (type === 'water' && waterCans <= 0) ||
+                    (type === 'water' && currentPlot && currentPlot.waterLevel >= 40)
                   }
-                  className={`flex-1 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                    type === 'water'
-                      ? 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700'
-                      : 'bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700'
-                  }`}
+                  className={`flex-1 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-gradient-to-r from-blue-500 to-cyan-600 text-white hover:from-blue-600 hover:to-cyan-700`}
                 >
                   {type === 'water' && String(transactionStatus) === 'pending'
                     ? 'Confirming…'
-                    : type === 'harvest' && String(transactionStatus) === 'pending'
-                      ? 'Harvesting…'
-                      : type === 'harvest' && growing === false && cooldownPassed
-                        ? 'Plot already harvested'
                         : energy < energyCost
                           ? 'Not Enough Energy'
                           : `Confirm ${actionData.title}`}
@@ -645,10 +659,6 @@ function TransactionModal({
 
             {type === 'harvest' && (
               <div className="text-xs text-yellow-700 mt-2">Golden Harvester uses left: {Number(harvesterUses) || 0}</div>
-            )}
-
-            {type === 'harvest' && (!harvesterUses || Number(harvesterUses) <= 0) && (
-              <div className="mt-2 text-xs text-red-600 text-center">You need a Golden Harvester with uses left to harvest.</div>
             )}
 
             {energy < energyCost && (

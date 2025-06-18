@@ -8,6 +8,7 @@ import { marketItems } from './Marketplace';
 import { updateAfterPlant } from '../lib/firebaseUser';
 import { ethers } from 'ethers';
 import { shredsService, isRiseTestnet } from '../services/shredsService';
+import { useNavigate } from 'react-router-dom';
 
 interface PlantModalProps {
   isOpen: boolean;
@@ -135,6 +136,8 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   const publicClient = usePublicClient();
 
   const showEnergyWarning = energy < 5; // Warning when energy is below 5
+
+  const navigate = useNavigate();
 
   React.useEffect(() => {
     async function syncOnChainPlot() {
@@ -414,6 +417,14 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
             >
               Cancel
             </button>
+            {ownedSeeds[selectedIdx]?.total > 0 && energy < ownedSeeds[selectedIdx]?.energyCost ? (
+              <button
+                className="flex-1 py-3 rounded-xl font-medium bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 text-xs"
+                onClick={() => navigate('/marketplace')}
+              >
+                Buy Energy on Marketplace
+              </button>
+            ) : (
             <button
               className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                 ownedSeeds[selectedIdx]?.total > 0 && energy >= ownedSeeds[selectedIdx]?.energyCost
@@ -425,6 +436,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
             >
               Next
             </button>
+            )}
           </div>
         )}
         {step === 2 && ownedSeeds.length > 0 && selectedSeed && (
@@ -441,6 +453,14 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
             >
               Cancel
             </button>
+            {!canPlant ? (
+              <button
+                className="flex-1 py-3 rounded-xl font-medium bg-gradient-to-r from-yellow-500 to-orange-600 text-white hover:from-yellow-600 hover:to-orange-700 text-xs"
+                onClick={() => navigate('/marketplace')}
+              >
+                Buy Energy on Marketplace
+              </button>
+            ) : (
             <button
               className={`flex-1 py-3 rounded-xl font-medium transition-all ${
                 canPlant
@@ -452,6 +472,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
             >
               {isPending ? 'Planting...' : energy < selectedSeed.energyCost ? 'Not Enough Energy' : '+ Plant Seeds'}
             </button>
+            )}
           </div>
         )}
       </div>
