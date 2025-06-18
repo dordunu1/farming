@@ -375,6 +375,15 @@ function TransactionModal({
           setShowActionToast(true);
           setTimeout(() => setShowActionToast(false), 3000);
         }
+        if (type === 'water' && result?.hash && address) {
+          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+            plots.map((plot: any) =>
+              plot.id === plotId
+                ? { ...plot, waterLevel: 100, status: 'watering' }
+                : plot
+            )
+          );
+        }
       } else {
         throw new Error('Transaction failed: No result received');
       }

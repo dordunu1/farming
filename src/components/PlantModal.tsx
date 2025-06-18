@@ -270,10 +270,26 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       
       if (result?.hash) {
         setTxHash(result.hash);
-        console.log('⚡ Plant seed transaction completed');
         setIsPending(false);
         setTxSuccess(true);
         setShowToast(true);
+        // PATCH: Update local plot state instantly
+        (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+          plots.map((plot: any) =>
+            plot.id === plotId
+              ? {
+                  ...plot,
+                  status: 'growing',
+                  waterLevel: 100,
+                  cropType: selectedSeed.name,
+                  quality: selectedSeed.rarity === 'legendary' ? 'excellent' : selectedSeed.rarity === 'rare' ? 'good' : 'poor',
+                  expectedYield: selectedSeed.bundles > 0 ? parseYield(selectedSeed.bundleYield) : parseYield(selectedSeed.yield),
+                  plantedAt: Math.floor(Date.now() / 1000),
+                  // Optionally set readyAt if you can estimate it here
+                }
+              : plot
+          )
+        );
         setTimeout(() => setShowToast(false), 3000);
       } else {
         throw new Error('Transaction failed: No result received');

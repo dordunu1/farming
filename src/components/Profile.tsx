@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Star, Coins, Trophy, CheckCircle, Wallet, X } from 'lucide-react';
+import { User, Star, Coins, Trophy, CheckCircle, Wallet, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount, useWriteContract } from 'wagmi';
 // @ts-ignore
@@ -11,6 +11,7 @@ import { useWallet } from '../hooks/useWallet';
 import { useEffect, useState } from 'react';
 import { ethers } from 'ethers';
 import ReactDOM from 'react-dom';
+import { shredsService, isRiseTestnet } from '../services/shredsService';
 
 interface ProfileProps {
   isWalletConnected: boolean;
@@ -41,6 +42,10 @@ export default function Profile({
       ? import.meta.env.VITE_CURRENCY_SYMBOL || 'STT'
       : import.meta.env.VITE_RISE_CURRENCY_SYMBOL || 'ETH';
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [claiming, setClaiming] = useState(false);
+  const [claimSuccess, setClaimSuccess] = useState(false);
+  const [claimError, setClaimError] = useState('');
+  const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
 
   // Fetch on-chain RT balance
   const { data: onChainRiceTokens } = useContractRead({
@@ -241,12 +246,13 @@ export default function Profile({
 
   return (
     <div className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 max-w-md mx-auto border border-gray-100 relative" style={{ boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.10)' }}>
-      {/* Compact wallet status badge */}
+      {/* Compact wallet status badge on the right */}
       <div className="absolute top-4 right-4 flex items-center gap-1 bg-white/80 border border-emerald-200 rounded-full px-3 py-1 text-xs font-semibold text-emerald-700 shadow-sm" style={{height: 28}}>
         <Wallet className="w-4 h-4 text-emerald-500" />
         Wallet Connected
       </div>
-      <div className="text-center mb-6">
+      {/* End top badges row */}
+      <div className="text-center mb-6 mt-8">
         <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-emerald-200 shadow-lg bg-white/60 backdrop-blur">
           <img
             src={userStats.pfp || `https://api.dicebear.com/7.x/avataaars/svg?seed=${address}`}
@@ -256,8 +262,46 @@ export default function Profile({
         </div>
         <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Player Profile</h2>
         <p className="text-sm text-gray-600 mt-1 font-mono">
-          {address.slice(0, 6)}...{address.slice(-4)}
+          {gameWallet?.address
+            ? `${gameWallet.address.slice(0, 6)}...${gameWallet.address.slice(-4)}`
+            : 'Loading...'}
         </p>
+        {/* Move In-Game Wallet Button here, centered under address */}
+        <div className="flex justify-center mt-2">
+          {walletLoading ? (
+            <div className="flex items-center gap-1 bg-gray-100 text-gray-600 font-semibold rounded-full px-3 py-1 text-xs">
+              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+              Loading Wallet...
+            </div>
+          ) : gameWallet ? (
+            <button
+              className="flex items-center gap-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold rounded-full px-3 py-1 text-xs shadow border border-emerald-200"
+              style={{ fontSize: '12px' }}
+              onClick={() => setShowWalletModal(true)}
+            >
+              <Wallet className="w-4 h-4" />
+              View In-Game Wallet
+            </button>
+          ) : (
+            <div className="flex flex-col items-center gap-1">
+              <button
+                className="flex items-center gap-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-semibold rounded-full px-3 py-1 text-xs shadow border border-yellow-200"
+                style={{ fontSize: '12px' }}
+                onClick={handleRefreshWallet}
+                disabled={walletLoading}
+              >
+                <Wallet className="w-4 h-4" />
+                {walletLoading ? 'Refreshing...' : 'Refresh In-Game Wallet'}
+              </button>
+              <div className="text-xs text-gray-500 text-center">
+                Wallet not found. Click to regenerate from your signature.
+              </div>
+            </div>
+          )}
+        </div>
       </div>
       <div className="space-y-4">
         {/* Level Section */}
@@ -295,16 +339,72 @@ export default function Profile({
           </div>
           {/* Claim RISE button logic */}
           {rtInt >= 500 ? (
-            <button
-              className="mt-3 w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 rounded-lg font-semibold hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow"
-              onClick={() => claimRiseTokens.writeContract({
-                address: import.meta.env.VITE_FARMING_ADDRESS,
-                abi: RiseFarmingABI,
-                functionName: 'claimRiseTokens',
-              })}
-            >
-              Claim RISE (ERC20)
-            </button>
+            <>
+              <button
+                className="mt-3 w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-2 rounded-lg font-semibold hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow flex items-center justify-center gap-2"
+                onClick={async () => {
+                  if (!gameWallet) {
+                    setClaimError('In-game wallet not loaded');
+                    return;
+                  }
+                  setClaiming(true);
+                  setClaimSuccess(false);
+                  setClaimError('');
+                  setClaimTxHash(null);
+                  try {
+                    const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+                    const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+                    const wallet = new ethers.Wallet(gameWallet.privateKey, provider);
+                    const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI, wallet);
+                    let txHash = null;
+                    if (isRiseTestnet()) {
+                      const overrides = { gasPrice: ethers.utils.parseUnits('1', 'gwei') };
+                      const result = await shredsService.sendTransaction(
+                        null,
+                        wallet,
+                        contract,
+                        'claimRiseTokens',
+                        [],
+                        overrides
+                      );
+                      txHash = result?.hash;
+                    } else {
+                      const tx = await contract.claimRiseTokens();
+                      txHash = tx.hash;
+                      await tx.wait();
+                    }
+                    setClaimTxHash(txHash);
+                    setClaimSuccess(true);
+                  } catch (err: any) {
+                    setClaimError(err?.reason || err?.message || 'Claim failed');
+                  } finally {
+                    setClaiming(false);
+                  }
+                }}
+                disabled={claiming}
+              >
+                {claiming ? <Loader2 className="animate-spin w-5 h-5" /> : 'Claim RISE (ERC20)'}
+              </button>
+              {claimSuccess && (
+                <div className="mt-2 text-green-700 text-sm flex flex-col items-center">
+                  <CheckCircle className="w-5 h-5 mb-1" />
+                  Claim successful!
+                  {claimTxHash && (
+                    <a
+                      href={`https://explorer.risewallet.io/tx/${claimTxHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-600 underline mt-1"
+                    >
+                      View Transaction
+                    </a>
+                  )}
+                </div>
+              )}
+              {claimError && (
+                <div className="mt-2 text-red-600 text-xs">{claimError}</div>
+              )}
+            </>
           ) : (
             <div className="mt-3 w-full text-center text-xs text-gray-500 bg-yellow-100/80 rounded-lg py-2">
               You need at least 500 RT to claim RISE tokens.
@@ -332,41 +432,6 @@ export default function Profile({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* In-Game Wallet Button */}
-      <div className="mt-8 flex justify-center">
-        {walletLoading ? (
-          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-600 font-semibold rounded-xl">
-            <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-            </svg>
-            Loading Wallet...
-          </div>
-        ) : gameWallet ? (
-          <button
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-semibold rounded-xl shadow"
-            onClick={() => setShowWalletModal(true)}
-          >
-            <Wallet className="w-5 h-5" />
-            View In-Game Wallet
-          </button>
-        ) : (
-          <div className="flex flex-col items-center gap-2">
-            <button
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-semibold rounded-xl shadow"
-              onClick={handleRefreshWallet}
-              disabled={walletLoading}
-            >
-              <Wallet className="w-5 h-5" />
-              {walletLoading ? 'Refreshing...' : 'Refresh In-Game Wallet'}
-            </button>
-            <div className="text-xs text-gray-500 text-center">
-              Wallet not found. Click to regenerate from your signature.
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Modal */}
