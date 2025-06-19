@@ -1,0 +1,103 @@
+// shredsService.rise-only.txt
+// Minimal Shreds Service for RISE Testnet Only
+// This file contains only the logic needed for nonce management and Shreds transaction sending on RISE testnet.
+// Copy and adapt as needed for your RISE-only project.
+
+import { ethers } from 'ethers';
+
+// --- Robust Local Nonce Management (RISE only) ---
+let localNonce: number | null = null;
+let fetchedNonce: number | null = null;
+let nonceInitialized = false;
+let walletInstance: ethers.Wallet | null = null;
+
+// Poll the network every 1 second to update fetchedNonce
+setInterval(async () => {
+  if (walletInstance) {
+    try {
+      const networkNonce = await walletInstance.getTransactionCount('pending');
+      fetchedNonce = networkNonce;
+      if (localNonce !== null && fetchedNonce > localNonce) {
+        localNonce = fetchedNonce;
+      }
+    } catch (e) {}
+  }
+}, 1000);
+
+async function getNextNonce(wallet: ethers.Wallet) {
+  if (!nonceInitialized || !walletInstance || walletInstance.address !== wallet.address) {
+    fetchedNonce = await wallet.getTransactionCount('pending');
+    localNonce = fetchedNonce;
+    nonceInitialized = true;
+    walletInstance = wallet;
+  }
+  const nonceToUse = Math.max(localNonce ?? 0, fetchedNonce ?? 0);
+  localNonce = nonceToUse + 1;
+  return nonceToUse;
+}
+// --- End Nonce Management ---
+
+// --- Shreds Client Initialization (RISE only) ---
+let shredsClient: any = null;
+let syncClient: any = null;
+
+const initializeShreds = async () => {
+  try {
+    const shredsModule = await import('shreds/viem');
+    const { riseTestnet } = await import('viem/chains');
+    const { http } = await import('viem');
+    shredsClient = shredsModule.createPublicShredClient({
+      chain: riseTestnet,
+      transport: shredsModule.shredsWebSocket(import.meta.env.VITE_SHREDS_WEBSOCKET_URL || 'wss://testnet.riselabs.xyz/ws'),
+    });
+    syncClient = shredsModule.createPublicSyncClient({
+      chain: riseTestnet,
+      transport: http(import.meta.env.VITE_RISE_RPC_URL),
+    });
+    return { shredsClient, syncClient };
+  } catch (error) {
+    return { shredsClient: null, syncClient: null };
+  }
+};
+
+// Call this once at app startup
+initializeShreds();
+
+// --- Send Transaction with Shreds (RISE only) ---
+export const shredsService = {
+  async preInitializeNonce(walletPrivateKey: string) {
+    try {
+      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL;
+      const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
+      const wallet = new ethers.Wallet(walletPrivateKey, provider);
+      const initialNonce = await wallet.getTransactionCount('pending');
+      fetchedNonce = initialNonce;
+      localNonce = initialNonce;
+      nonceInitialized = true;
+      walletInstance = wallet;
+    } catch (error) {}
+  },
+
+  async sendTransaction(_tx: any, wallet: ethers.Wallet, contract: ethers.Contract, method: string, args: any[], options?: any) {
+    try {
+      const gasPrice = ethers.utils.parseUnits('1', 'gwei');
+      const nonce = await getNextNonce(wallet);
+      const data = contract.interface.encodeFunctionData(method, args);
+      const txObject = {
+        to: contract.address,
+        data: data,
+        value: options?.value || 0,
+        nonce: nonce,
+        gasPrice: gasPrice,
+        gasLimit: 500000,
+      };
+      const signedTx = await wallet.signTransaction(txObject);
+      const receipt = await syncClient.sendRawTransactionSync({
+        serializedTransaction: signedTx,
+      });
+      return { hash: receipt.transactionHash, receipt };
+    } catch (error) {
+      throw error;
+    }
+  },
+}; 

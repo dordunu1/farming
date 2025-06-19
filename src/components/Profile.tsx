@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Star, Coins, Trophy, CheckCircle, Wallet, X, Loader2, LogOut } from 'lucide-react';
+import { User, Star, Coins, Trophy, CheckCircle, Wallet, X, Loader2, LogOut, Fuel } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount, useWriteContract } from 'wagmi';
 // @ts-ignore
@@ -173,6 +173,21 @@ export default function Profile({
                 </button>
               </div>
               <div className="text-xs text-gray-600 mb-2">{currencySymbol} Balance: {balance !== null ? `${balance} ${currencySymbol}` : '...'}</div>
+              {/* Faucet link for RISE testnet, with gas icon and separated from reveal link */}
+              {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && (
+                <div className="mb-2 flex items-center gap-2">
+                  <a
+                    href="https://faucet.testnet.riselabs.xyz"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1 text-xs bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 text-emerald-700 font-semibold transition"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Fuel className="w-4 h-4 mr-1 text-emerald-600" />
+                    Get Test ETH from Faucet
+                  </a>
+                </div>
+              )}
               <button
                 className="text-xs text-yellow-700 underline mb-2"
                 onClick={() => setShowSensitive(v => !v)}
