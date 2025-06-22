@@ -62,14 +62,18 @@ function DailyRewardModal({ isOpen, onClose }: DailyRewardModalProps) {
   const isLoadingUserData = result.isLoading;
   const streak = Number(userData?.[0]?.result || 0);
   const lastClaimed = Number(userData?.[1]?.result || 0);
-  // Calculate current day (1-7)
-  const currentDay = streak === 0 ? 1 : ((streak % 7) || 7);
-  const reward = rewards[currentDay - 1].reward;
   // Calculate claim availability
   const now = Math.floor(Date.now() / 1000);
   const nextClaimTime = lastClaimed + 86400;
   const canClaim = now > nextClaimTime;
   const secondsLeft = nextClaimTime - now;
+  // Calculate current day (1-7)
+  let currentDay = streak === 0 ? 1 : ((streak % 7) || 7);
+  if (canClaim) {
+    // Show the next day streak if eligible to claim
+    currentDay = ((streak + 1) % 7) || 7;
+  }
+  const reward = rewards[currentDay - 1].reward;
   // Format countdown
   const formatCountdown = (s: number) => {
     if (s <= 0) return '';
