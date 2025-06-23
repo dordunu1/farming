@@ -328,17 +328,24 @@ function HomeScreen({
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
       
-      // Use Shreds service for transaction
-      const result = await shredsService.sendTransaction(
-        null, // transaction object not needed for this method
-        wallet,
-        contract,
-        'claimQuestReward',
-        [BigInt(questId)],
-        { gasLimit: 300000 }
-      );
+      let result;
+      if (isRiseTestnet()) {
+        // Use Shreds service for RISE testnet
+        result = await shredsService.sendTransaction(
+          null, // transaction object not needed for this method
+          wallet,
+          contract,
+          'claimQuestReward',
+          [BigInt(questId)],
+          { gasLimit: 300000 }
+        );
+      } else {
+        // Use direct ethers.js call for Somnia with high gas limit
+        const tx = await contract.claimQuestReward(BigInt(questId), { gasLimit: 5_000_000 });
+        result = await tx.wait();
+      }
       
-      if (result?.hash) {
+      if (result?.hash || result?.transactionHash) {
         console.log('⚡ Quest claim transaction completed');
         setClaimingQuestId(null);
         setClaimedQuestId(questId);
