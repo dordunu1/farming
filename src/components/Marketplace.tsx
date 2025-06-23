@@ -242,11 +242,58 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
     functionName: 'userEnergy',
     args: address ? [address] : undefined,
   });
+  const { wallet: inGameWallet } = useInGameWallet(address);
+  const inGameAddress = inGameWallet?.address;
+
+  // Fetch native balance (ETH for Rise, STT for Somnia) for in-game wallet
+  const [nativeBalance, setNativeBalance] = React.useState<number>(0);
+  React.useEffect(() => {
+    async function fetchNativeBalance() {
+      if (!inGameAddress) return;
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
+        const balance = await provider.getBalance(inGameAddress);
+        setNativeBalance(Number(ethers.utils.formatEther(balance)));
+      } catch (e) {
+        setNativeBalance(0);
+      }
+    }
+    if (inGameAddress && item && item.currency === NATIVE_SYMBOL) fetchNativeBalance();
+  }, [inGameAddress, item, NATIVE_SYMBOL]);
 
   if (!open || !item) return null;
 
   const isEnergyBooster = item.id === 19;
   const showEnergyWarning = userEnergy !== undefined && Number(userEnergy) <= 2;
+
+  // Pre-check for low balance
+  const hasLowNative = item && item.currency === NATIVE_SYMBOL && ((NATIVE_SYMBOL === 'STT' && nativeBalance < 1) || (NATIVE_SYMBOL === 'ETH' && nativeBalance < 0.002));
+  const hasInsufficientNative = item && item.currency === NATIVE_SYMBOL && nativeBalance < (Number(item.usdPrice) * quantity);
+
+  // Show warning if low balance
+  const showLowNativeWarning = hasLowNative;
+
+  // Show error if insufficient for this purchase
+  const showInsufficientNativeError = hasInsufficientNative;
+
+  // Handler for confirm buy with pre-check
+  const handleConfirm = async () => {
+    if (!item || !address || pending) return;
+    if (hasLowNative || hasInsufficientNative) {
+      alert(`You have insufficient ${NATIVE_SYMBOL} to complete this purchase. Please top up your balance and try again.`);
+      return;
+    }
+    try {
+      await onConfirm();
+    } catch (error: any) {
+      // Friendly error for gas estimation
+      if (error?.message?.includes('UNPREDICTABLE_GAS_LIMIT') || error?.message?.includes('estimateGas')) {
+        alert(`Transaction failed: You have insufficient ${NATIVE_SYMBOL} to complete this purchase. Please top up your balance and try again.`);
+        return;
+      }
+      alert('Transaction failed: ' + (error?.message || error));
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
@@ -257,18 +304,13 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
           <h2 className="text-xl font-bold mb-2">{success ? 'Congratulations!' : 'Confirm Purchase'}</h2>
           {success ? (
             <div className="text-center text-emerald-700 font-semibold text-lg mb-4">
-              {isEnergyBooster ? 'Energy replenished! 🎉' : 'Your purchase was successful! 🎉'}
-              <br />{isEnergyBooster ? 'You can now continue farming.' : 'Check your inventory for your new item.'}
+              {item.id === 19 ? 'Energy replenished! 🎉' : 'Your purchase was successful! 🎉'}
+              <br />{item.id === 19 ? 'You can now continue farming.' : 'Check your inventory for your new item.'}
             </div>
           ) : (
             <div className="mb-4 text-center">
               <div className="text-lg font-semibold">{item.name}</div>
               <div className="text-gray-500 text-sm mb-2">{item.description}</div>
-              {isEnergyBooster && showEnergyWarning && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 text-sm text-red-600">
-                  ⚠️ Low energy! This booster will help you continue farming.
-                </div>
-              )}
               {item.category === 'bundle' && bundleBreakdown && (
                 <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2 mt-2">
                   <div className="font-medium text-emerald-700 mb-1">Bundle Includes:</div>
@@ -290,22 +332,33 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
                   disabled={pending}
                 />
               </div>
-              {item.currency === 'RT' && (
-                <div className="text-red-500 text-sm mt-2">
-                  {userRTBalance < item.usdPrice * quantity && (
-                    <>Insufficient RT balance. You need at least {item.usdPrice * quantity} RT to buy this item.</>
-                  )}
+              {/* Show low balance warning */}
+              {showLowNativeWarning && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mt-2 text-sm text-yellow-700">
+                  Your {NATIVE_SYMBOL} balance is very low. You may not be able to buy most items until you top up your balance.
+                </div>
+              )}
+              {/* Show insufficient balance error */}
+              {showInsufficientNativeError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 text-sm text-red-600">
+                  Insufficient {NATIVE_SYMBOL} balance. You need at least {Number(item.usdPrice) * quantity} {NATIVE_SYMBOL} to buy this item.
+                </div>
+              )}
+              {/* Show balances */}
+              {item.currency === NATIVE_SYMBOL && (
+                <div className="text-xs text-gray-500 mt-1 text-right">
+                  Your {NATIVE_SYMBOL} balance: <span className="font-bold">{nativeBalance.toFixed(4)}</span>
                 </div>
               )}
             </div>
           )}
           {!success && (
             <button 
-              onClick={onConfirm} 
-              disabled={pending || !address || (item.currency === 'RT' && userRTBalance < item.usdPrice * quantity)} 
-              className={`w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl mt-4 transition-opacity ${(pending || !address || (item.currency === 'RT' && userRTBalance < item.usdPrice * quantity)) ? 'opacity-60 cursor-not-allowed' : ''}`}
+              onClick={handleConfirm} 
+              disabled={pending || !address || showInsufficientNativeError || showLowNativeWarning}
+              className={`w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 rounded-xl mt-4 transition-opacity ${(pending || !address || showInsufficientNativeError || showLowNativeWarning) ? 'opacity-60 cursor-not-allowed' : ''}`}
             >
-              {pending ? 'Buying...' : isEnergyBooster ? 'Replenish Energy' : 'Buy Now'}
+              {pending ? 'Buying...' : item.id === 19 ? 'Replenish Energy' : 'Buy Now'}
             </button>
           )}
         </div>
@@ -333,7 +386,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const [showDetailsIdx, setShowDetailsIdx] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [processedTxs, setProcessedTxs] = useState<Set<string>>(new Set());
-  const { wallet: inGameWallet, isLoading: walletLoading, error: walletError } = useInGameWallet(address);
+  const { wallet: inGameWallet } = useInGameWallet(address);
   const inGameAddress = inGameWallet?.address;
 
   // Initialize nonce management early for faster first transactions

@@ -141,16 +141,16 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
 
   React.useEffect(() => {
     async function syncOnChainPlot() {
-      if (txSuccess && address && plotId && selectedSeed && txHash && !hasUpdatedRef.current) {
+      if (txSuccess && inGameAddress && plotId && selectedSeed && txHash && !hasUpdatedRef.current) {
         hasUpdatedRef.current = true;
-        // Fetch on-chain plot data for this plot
+        // Fetch on-chain plot data for this plot using inGameAddress
         try {
-          if (!publicClient) throw new Error('No publicClient');
+          if (!publicClient || !address) return;
           const plotData = await publicClient.readContract({
             address: import.meta.env.VITE_FARMING_ADDRESS,
             abi: RiseFarmingABI as any,
             functionName: 'userPlots',
-            args: [address, plotId],
+            args: [inGameAddress, plotId],
           }) as [number, number, number, number, number, boolean];
           // plotData: [seedId, plantedAt, readyAt, growthBonusBP, yieldBonusBP, growing]
           const plantedAt = Number(plotData[1]);
@@ -161,7 +161,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
           const expectedYield = yieldBonus;
           const tx = txHash;
           await updateAfterPlant(
-            address,
+            address as string,
             plotId,
             cropType,
             yieldBonus,
@@ -170,6 +170,23 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
             expectedYield,
             plantedAt,
             readyAt
+          );
+          // Update local state with latest on-chain plot data
+          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots) =>
+            plots.map((plot: any) =>
+              plot.id === plotId
+                ? {
+                    ...plot,
+                    cropType,
+                    quality,
+                    expectedYield,
+                    plantedAt,
+                    readyAt,
+                    status: 'growing',
+                    waterLevel: 100,
+                  }
+                : plot
+            )
           );
           console.log('PlantModal: updateAfterPlant called', {
             address,
@@ -183,13 +200,15 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
             readyAt
           });
         } catch (err) {
+          // fallback: update with best guess
           const cropType = selectedSeed.name;
           const yieldBonus = selectedSeed.bundles > 0 ? parseYield(selectedSeed.bundleYield) : parseYield(selectedSeed.yield);
           const quality = selectedSeed.rarity === 'legendary' ? 'excellent' : selectedSeed.rarity === 'rare' ? 'good' : 'poor';
           const expectedYield = yieldBonus;
           const tx = txHash;
+          if (!address) return;
           await updateAfterPlant(
-            address,
+            address as string,
             plotId,
             cropType,
             yieldBonus,
@@ -276,14 +295,15 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
         setIsPending(false);
         setTxSuccess(true);
         setShowToast(true);
-        // PATCH: Update local plot state instantly
-        (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+        // PATCH: Update local plot state instantly to reflect correct post-planting state
+        (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots) =>
           plots.map((plot: any) =>
             plot.id === plotId
               ? {
                   ...plot,
-                  status: 'growing',
-                  waterLevel: 100,
+                  status: 'needsWater',
+                  growing: false,
+                  waterLevel: 0,
                   cropType: selectedSeed.name,
                   quality: selectedSeed.rarity === 'legendary' ? 'excellent' : selectedSeed.rarity === 'rare' ? 'good' : 'poor',
                   expectedYield: selectedSeed.bundles > 0 ? parseYield(selectedSeed.bundleYield) : parseYield(selectedSeed.yield),

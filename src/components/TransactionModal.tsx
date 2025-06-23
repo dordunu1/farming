@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { X, Loader2, CheckCircle, AlertCircle, Droplets, Scissors, Zap, Info } from 'lucide-react';
 import { useAccount, useContractRead } from 'wagmi';
 import RiseFarmingABI from '../abi/RiseFarming.json';
-import { updateAfterWater, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, updateAfterRevive } from '../lib/firebaseUser';
+import { updateAfterWater, syncUserOnChainToFirestore, logAndSyncUserActivity, getActivityIcon, updateAfterRevive, updateAfterHarvest } from '../lib/firebaseUser';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { ethers } from 'ethers';
@@ -93,52 +93,61 @@ function TransactionModal({
   });
 
   React.useEffect(() => {
-    if (type === 'water' && transactionStatus === 'success' && address && plotId && txHash && !hasUpdatedRef.current) {
+    if (type === 'water' && transactionStatus === 'success' && plotId && txHash && !hasUpdatedRef.current) {
+      if (!inGameAddress) return;
       hasUpdatedRef.current = true;
-      setTimeout(() => {
-        (async () => {
-          // Use ethers.js to fetch the latest on-chain plot data
-          const provider = new ethers.providers.JsonRpcProvider(
-            import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
-              ? import.meta.env.VITE_RISE_RPC_URL 
-              : import.meta.env.VITE_RPC_URL
+      (async () => {
+        // Fetch latest on-chain plot data after watering using inGameAddress
+        const provider = new ethers.providers.JsonRpcProvider(
+          import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
+            ? import.meta.env.VITE_RISE_RPC_URL 
+            : import.meta.env.VITE_RPC_URL
+        );
+        const contract = new ethers.Contract(
+          import.meta.env.VITE_FARMING_ADDRESS,
+          RiseFarmingABI,
+          provider
+        );
+        const latestPlot = await contract.userPlots(inGameAddress, plotId);
+        const plantedAt = Number(latestPlot.plantedAt);
+        const readyAt = Number(latestPlot.readyAt);
+        const state = Number(latestPlot.state);
+        // Map on-chain data to UI plot fields (like PlantModal)
+        (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots) =>
+          plots.map((plot: any) =>
+            plot.id === plotId
+              ? {
+                  ...plot,
+                  plantedAt,
+                  readyAt,
+                  waterLevel: 100,
+                  status: state === 2 ? 'growing' : 'needsWater',
+                  state,
+                }
+              : plot
+          )
+        );
+        // Firestore update remains
+        const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', inGameAddress as string);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const plots = userData.plots || [];
+          const updatedPlots = plots.map((plot: any) =>
+            plot.id === plotId
+              ? { ...plot, plantedAt, readyAt, status: state === 2 ? 'growing' : 'needsWater', state }
+              : plot
           );
-          const contract = new ethers.Contract(
-            import.meta.env.VITE_FARMING_ADDRESS,
-            RiseFarmingABI,
-            provider
-          );
-          const latestPlot = await contract.userPlots(inGameAddress, plotId);
-          const plantedAt = Number(latestPlot.plantedAt);
-          const readyAt = Number(latestPlot.readyAt);
-          const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            const plots = userData.plots || [];
-            const updatedPlots = plots.map((plot: any) =>
-              plot.id === plotId
-                ? { ...plot, plantedAt, readyAt, status: 'growing' }
-                : plot
-            );
-            await setDoc(userRef, { plots: updatedPlots }, { merge: true });
-          }
-        })();
-      }, 1000);
-      // Update local plot state immediately
-      const updatedPlots = plots.map((plot: any) =>
-        plot.id === plotId
-          ? { ...plot, waterLevel: 100, status: 'watering' }
-          : plot
-      );
-      setPlots(updatedPlots);
-      updateAfterWater(address, plotId, txHash, 100).then(() => {
+          await setDoc(userRef, { plots: updatedPlots }, { merge: true });
+        }
+      })();
+      updateAfterWater(inGameAddress as string, plotId, txHash, 100).then(() => {
         setEnergy(energy - 5); // Only deduct energy after success
         setTransactionStatus('success');
         setTxHash(txHash);
         // Log and sync activity after water
         if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
-          logAndSyncUserActivity(address, {
+          logAndSyncUserActivity(inGameAddress as string, {
             icon: getActivityIcon('water'),
             action: `Watered Plot #${plotId}`,
             time: new Date().toISOString(),
@@ -157,72 +166,89 @@ function TransactionModal({
       });
     }
     // Add Firestore riceTokens update for harvest
-    if (type === 'harvest' && transactionStatus === 'success' && address && plotId && currentPlot) {
-      setTimeout(() => {
-        (async () => {
-          const provider = new ethers.providers.JsonRpcProvider(
-            import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
-              ? import.meta.env.VITE_RISE_RPC_URL 
-              : import.meta.env.VITE_RPC_URL
-          );
-          const contract = new ethers.Contract(
-            import.meta.env.VITE_FARMING_ADDRESS,
-            RiseFarmingABI,
-            provider
-          );
-          const latestPlot = await contract.userPlots(inGameAddress, plotId);
-          const state = Number(latestPlot.state);
-          const needsFertilizer = Boolean(latestPlot.needsFertilizer);
-          const harvestedAt = Number(latestPlot.harvestedAt);
-          const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address);
-          const userSnap = await getDoc(userRef);
-          if (userSnap.exists()) {
-            const userData = userSnap.data();
-            const plots = userData.plots || [];
-            const updatedPlots = plots.map((plot: any) =>
-              plot.id === plotId
-                ? { ...plot, state, needsFertilizer, harvestedAt, status: state === 4 ? 'withering' : plot.status }
-                : plot
-            );
-            // Count harvested plots
-            const harvestedCount = updatedPlots.filter((p: any) => p.status === 'empty' && p.cropType !== '').length;
-            await setDoc(userRef, { plots: updatedPlots, numHarvested: harvestedCount }, { merge: true });
-          }
-        })();
-      }, 1000);
+    if (type === 'harvest' && transactionStatus === 'success' && plotId && currentPlot) {
+      if (!address) return;
+      hasUpdatedRef.current = true;
       (async () => {
-        const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address);
-        // Fetch on-chain RT and update Firestore
-        if (onChainRiceTokens !== undefined) {
-          await setDoc(userRef, { riceTokens: Number(onChainRiceTokens) }, { merge: true });
-          setRiceTokens(Number(onChainRiceTokens));
+        // Fetch latest on-chain plot data after harvest using inGameAddress
+        const provider = new ethers.providers.JsonRpcProvider(
+          import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
+            ? import.meta.env.VITE_RISE_RPC_URL 
+            : import.meta.env.VITE_RPC_URL
+        );
+        const contract = new ethers.Contract(
+          import.meta.env.VITE_FARMING_ADDRESS,
+          RiseFarmingABI,
+          provider
+        );
+        const plotData = await contract.userPlots(inGameAddress, plotId);
+        const state = Number(plotData.state);
+        const needsFertilizer = Boolean(plotData.needsFertilizer);
+        const harvestedAt = Number(plotData.harvestedAt);
+        // Map on-chain data to UI plot fields (like PlantModal)
+        (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots) =>
+          plots.map((plot: any) =>
+            plot.id === plotId
+              ? {
+                  ...plot,
+                  state,
+                  needsFertilizer,
+                  harvestedAt,
+                  status: state === 4 ? 'locked' : plot.status,
+                  waterLevel: 0,
+                  quality: 'poor',
+                }
+              : plot
+          )
+        );
+        // Firestore update remains
+        const userRef = doc(db, 'chains', CURRENT_CHAIN, 'users', address as string);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const userData = userSnap.data();
+          const plots = userData.plots || [];
+          const updatedPlots = plots.map((plot: any) =>
+            plot.id === plotId
+              ? { ...plot, state, needsFertilizer, harvestedAt, status: state === 4 ? 'locked' : plot.status }
+              : plot
+          );
+          // Count harvested plots
+          const harvestedCount = updatedPlots.filter((p: any) => p.status === 'empty' && p.cropType !== '').length;
+          await setDoc(userRef, { plots: updatedPlots, numHarvested: harvestedCount }, { merge: true });
         }
-        // Log and sync activity after harvest
-        if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
-          let actualYield = 0;
-          if (type === 'harvest' && Array.isArray(fetchedPlot)) {
-            const seedId = Number(fetchedPlot[0]);
-            const yieldBonusBP = Number(fetchedPlot[4]);
-            const baseReward = seedBaseRewards[seedId] || 0;
-            actualYield = Math.floor(baseReward * (1000 + yieldBonusBP) / 1000);
-          }
-          logAndSyncUserActivity(address, {
-            icon: getActivityIcon('harvest'),
-            action: `Harvested Plot #${plotId}`,
-            time: new Date().toISOString(),
-            reward: `+${actualYield} RT`,
-            color: 'green',
-            txHash: txHash,
-          }, {
-            riceTokens: Number(onChainRiceTokens),
-            totalXP: Number(onChainXP),
-          });
-        }
-        setTimeout(() => {
-          onClose();
-          setTransactionStatus('idle');
-        }, 1500);
+        // Update Firestore using connected wallet address
+        await updateAfterHarvest(
+          address,
+          plotId,
+          txHash,
+          harvestedAt
+        );
       })();
+      // Log and sync activity after harvest
+      if (onChainRiceTokens !== undefined && onChainXP !== undefined) {
+        let actualYield = 0;
+        if (type === 'harvest' && Array.isArray(fetchedPlot)) {
+          const seedId = Number(fetchedPlot[0]);
+          const yieldBonusBP = Number(fetchedPlot[4]);
+          const baseReward = seedBaseRewards[seedId] || 0;
+          actualYield = Math.floor(baseReward * (1000 + yieldBonusBP) / 1000);
+        }
+        logAndSyncUserActivity(address as string, {
+          icon: getActivityIcon('harvest'),
+          action: `Harvested Plot #${plotId}`,
+          time: new Date().toISOString(),
+          reward: `+${actualYield} RT`,
+          color: 'green',
+          txHash: txHash,
+        }, {
+          riceTokens: Number(onChainRiceTokens),
+          totalXP: Number(onChainXP),
+        });
+      }
+      setTimeout(() => {
+        onClose();
+        setTransactionStatus('idle');
+      }, 1500);
     }
     // After a successful revive transaction
     if (type === 'revive' && transactionStatus === 'success' && address && plotId) {
@@ -352,10 +378,16 @@ function TransactionModal({
         setTxHash(result.hash);
         setTransactionStatus('success');
         if (type === 'harvest' && result?.hash && address) {
-          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+          // PATCH: Instantly update local plot state for feedback (harvest)
+          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots) =>
             plots.map((plot: any) =>
               plot.id === plotId
-                ? { ...plot, status: 'empty', waterLevel: 0, quality: 'poor' }
+                ? {
+                    ...plot,
+                    status: 'locked', // or whatever your UI expects for a harvested plot
+                    waterLevel: 0,
+                    quality: 'poor', // or whatever is appropriate
+                  }
                 : plot
             )
           );
@@ -364,7 +396,7 @@ function TransactionModal({
           setTimeout(() => setShowActionToast(false), 3000);
         }
         if (type === 'revive' && result?.hash && address) {
-          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots) =>
             plots.map((plot: any) =>
               plot.id === plotId
                 ? { ...plot, status: 'empty', waterLevel: 0, quality: 'poor' }
@@ -376,10 +408,15 @@ function TransactionModal({
           setTimeout(() => setShowActionToast(false), 3000);
         }
         if (type === 'water' && result?.hash && address) {
-          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots: any[]) =>
+          // PATCH: Instantly update local plot state for feedback (water)
+          (setPlots as React.Dispatch<React.SetStateAction<any[]>>)((plots) =>
             plots.map((plot: any) =>
               plot.id === plotId
-                ? { ...plot, waterLevel: 100, status: 'watering' }
+                ? {
+                    ...plot,
+                    waterLevel: 100,
+                    status: 'growing', // or whatever your UI expects
+                  }
                 : plot
             )
           );
