@@ -467,7 +467,7 @@ function HomeScreen({
         contract,
         'claimInitialEnergy',
         [],
-        { gasLimit: 500000 }
+        { gasLimit: 5_000_000  }
       );
       
       if (result?.hash) {
