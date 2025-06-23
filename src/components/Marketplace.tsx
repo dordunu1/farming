@@ -234,7 +234,7 @@ const safeBigInt = (val: any, fallback = 0n) => {
   return fallback;
 };
 
-function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBreakdown, quantity, setQuantity, userRTBalance = 0 }: { open: boolean, item: MarketItem | null, onClose: () => void, onConfirm: () => void, pending: boolean, success: boolean, bundleBreakdown?: string[], quantity: number, setQuantity: (q: number) => void, userRTBalance?: number }) {
+function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBreakdown, quantity, setQuantity, userRTBalance = 0, itemsRaw }: { open: boolean, item: MarketItem | null, onClose: () => void, onConfirm: () => void, pending: boolean, success: boolean, bundleBreakdown?: string[], quantity: number, setQuantity: (q: number) => void, userRTBalance?: number, itemsRaw?: any[] }) {
   const { address } = useAccount();
   const { data: userEnergy } = useContractRead({
     address: FARMING_ADDRESS,
@@ -247,7 +247,6 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
 
   // Fetch native balance (ETH for Rise, STT for Somnia) for in-game wallet using Profile.tsx logic
   const [nativeBalance, setNativeBalance] = React.useState<number>(0);
-  const [itemEthPrice, setItemEthPrice] = React.useState<number>(0);
   React.useEffect(() => {
     let rpcUrl = '';
     if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
@@ -268,39 +267,32 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
     if (inGameAddress && item && item.currency === NATIVE_SYMBOL) fetchNativeBalance();
   }, [inGameAddress, item, NATIVE_SYMBOL]);
 
-  React.useEffect(() => {
-    async function fetchItemEthPrice() {
-      if (!inGameAddress || !item || NATIVE_SYMBOL !== 'ETH') return;
-      try {
-        const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
-        const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, provider);
-        const itemData = await contract.items(item.id);
-        // ETH price is at index 3, divide by 1e18
-        const ethPrice = Number(itemData[3]) / 1e18;
-        setItemEthPrice(ethPrice);
-      } catch (e) {
-        setItemEthPrice(0);
-      }
+  // Fetch contract price for NATIVE_SYMBOL (ETH or STT)
+  let contractPrice = 0;
+  if (item && item.currency === NATIVE_SYMBOL && itemsRaw) {
+    const itemIdx = itemsRaw.findIndex((raw: any) => raw && raw.result && raw.result[0] == item.id);
+    if (
+      itemIdx !== -1 &&
+      itemsRaw[itemIdx] &&
+      Array.isArray(itemsRaw[itemIdx].result) &&
+      typeof itemsRaw[itemIdx].result[3] !== 'undefined'
+    ) {
+      contractPrice = Number(itemsRaw[itemIdx].result[3]) / 1e18;
     }
-    if (inGameAddress && item && NATIVE_SYMBOL === 'ETH') fetchItemEthPrice();
-  }, [inGameAddress, item, NATIVE_SYMBOL]);
+  }
 
   if (!open || !item) return null;
 
   const isEnergyBooster = item.id === 19;
   const showEnergyWarning = userEnergy !== undefined && Number(userEnergy) <= 2;
 
-  // Determine low/insufficient balance for ETH and STT
+  // Determine low/insufficient balance for ETH and STT using contractPrice
   let showLowNativeWarning = false;
   let showInsufficientNativeError = false;
   let requiredNative = 0;
-  if (NATIVE_SYMBOL === 'ETH') {
-    showLowNativeWarning = nativeBalance < 0.002;
-    requiredNative = itemEthPrice * quantity;
-    showInsufficientNativeError = nativeBalance < requiredNative;
-  } else if (NATIVE_SYMBOL === 'STT') {
-    showLowNativeWarning = nativeBalance < 1;
-    requiredNative = Number(item?.usdPrice || 0) * quantity;
+  if (item && item.currency === NATIVE_SYMBOL) {
+    showLowNativeWarning = nativeBalance < 0.002; // keep for both chains for now
+    requiredNative = contractPrice * quantity;
     showInsufficientNativeError = nativeBalance < requiredNative;
   }
 
@@ -889,6 +881,27 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 ? supplyMap.get(item.id).toString()
                 : '...';
             }
+            let contractPrice = undefined;
+            if (item.currency === NATIVE_SYMBOL && itemsRaw) {
+              if (item.category === 'bundle') {
+                // For bundles, get price from bundleDataMap (bundle[2])
+                const bundle = bundleDataMap.get(item.id);
+                if (bundle && Array.isArray(bundle) && typeof bundle[2] !== 'undefined') {
+                  contractPrice = (Number(bundle[2]) / 1e18).toFixed(6);
+                }
+              } else {
+                // For singles, get price from itemsRaw
+                const itemIdx = itemsRaw.findIndex((raw: any) => raw && raw.result && raw.result[0] == item.id);
+                if (
+                  itemIdx !== -1 &&
+                  itemsRaw[itemIdx] &&
+                  Array.isArray(itemsRaw[itemIdx].result) &&
+                  typeof itemsRaw[itemIdx].result[3] !== 'undefined'
+                ) {
+                  contractPrice = (Number(itemsRaw[itemIdx].result[3]) / 1e18).toFixed(6);
+                }
+              }
+            }
             return (
               <div
                 key={item.id}
@@ -935,7 +948,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <span className="font-bold text-sm text-emerald-600">
-                    {item.currency === NATIVE_SYMBOL ? `${ethAmount} ${NATIVE_SYMBOL}` : `${item.usdPrice} RT`}
+                    {item.currency === NATIVE_SYMBOL && contractPrice !== undefined ? `${contractPrice} ${NATIVE_SYMBOL}` : `${item.usdPrice} RT`}
                   </span>
                   {showUsd && item.currency === NATIVE_SYMBOL && (
                     <span className="text-xs text-gray-500">≈ ${item.usdPrice.toFixed(2)}</span>
@@ -991,6 +1004,7 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         quantity={quantity}
         setQuantity={setQuantity}
         userRTBalance={onChainRiceTokens !== undefined ? Number(onChainRiceTokens) : 0}
+        itemsRaw={itemsRaw}
       />
     </div>
   );
