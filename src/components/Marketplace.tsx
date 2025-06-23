@@ -389,6 +389,15 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const { wallet: inGameWallet } = useInGameWallet(address);
   const inGameAddress = inGameWallet?.address;
 
+  // Fetch energy for in-game wallet (match HomeScreen.tsx)
+  const { data: onChainEnergy } = useContractRead({
+    address: FARMING_ADDRESS,
+    abi: RiseFarmingABI as any,
+    functionName: 'userEnergy',
+    args: inGameAddress ? [inGameAddress] : undefined,
+  });
+  const energy = Number(onChainEnergy || 0);
+
   // Initialize nonce management early for faster first transactions
   useEffect(() => {
     if (inGameWallet && isRiseTestnet()) {
@@ -758,13 +767,13 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
           </div>
           <div className="flex items-center space-x-4">
             {/* Energy Display */}
-            {address && (
+            {inGameAddress && (
               <div className="flex items-center space-x-2">
-                <Zap className={`w-5 h-5 ${showEnergyWarning ? 'text-red-500' : 'text-yellow-500'}`} />
+                <Zap className={`w-5 h-5 ${energy <= 2 ? 'text-red-500' : 'text-yellow-500'}`} />
                 <span className="text-sm font-medium">
-                  Energy: {userEnergy?.toString() || '0'}
+                  Energy: {energy}
                 </span>
-                {showEnergyWarning && (
+                {energy <= 2 && (
                   <div className="relative group">
                     <Info className="w-4 h-4 text-red-500 cursor-help" />
                     <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-red-200 rounded-lg p-2 text-xs text-red-600 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">
