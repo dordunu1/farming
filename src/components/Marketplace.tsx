@@ -245,13 +245,20 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
   const { wallet: inGameWallet } = useInGameWallet(address);
   const inGameAddress = inGameWallet?.address;
 
-  // Fetch native balance (ETH for Rise, STT for Somnia) for in-game wallet
+  // Fetch native balance (ETH for Rise, STT for Somnia) for in-game wallet using Profile.tsx logic
   const [nativeBalance, setNativeBalance] = React.useState<number>(0);
+  const [itemEthPrice, setItemEthPrice] = React.useState<number>(0);
   React.useEffect(() => {
+    let rpcUrl = '';
+    if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
+      rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+    } else {
+      rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
+    }
     async function fetchNativeBalance() {
-      if (!inGameAddress) return;
+      if (!inGameAddress || !rpcUrl) return;
       try {
-        const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
+        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
         const balance = await provider.getBalance(inGameAddress);
         setNativeBalance(Number(ethers.utils.formatEther(balance)));
       } catch (e) {
@@ -261,25 +268,46 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
     if (inGameAddress && item && item.currency === NATIVE_SYMBOL) fetchNativeBalance();
   }, [inGameAddress, item, NATIVE_SYMBOL]);
 
+  React.useEffect(() => {
+    async function fetchItemEthPrice() {
+      if (!inGameAddress || !item || NATIVE_SYMBOL !== 'ETH') return;
+      try {
+        const provider = new ethers.providers.JsonRpcProvider(import.meta.env.VITE_RPC_URL);
+        const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, provider);
+        const itemData = await contract.items(item.id);
+        // ETH price is at index 3, divide by 1e18
+        const ethPrice = Number(itemData[3]) / 1e18;
+        setItemEthPrice(ethPrice);
+      } catch (e) {
+        setItemEthPrice(0);
+      }
+    }
+    if (inGameAddress && item && NATIVE_SYMBOL === 'ETH') fetchItemEthPrice();
+  }, [inGameAddress, item, NATIVE_SYMBOL]);
+
   if (!open || !item) return null;
 
   const isEnergyBooster = item.id === 19;
   const showEnergyWarning = userEnergy !== undefined && Number(userEnergy) <= 2;
 
-  // Pre-check for low balance
-  const hasLowNative = item && item.currency === NATIVE_SYMBOL && ((NATIVE_SYMBOL === 'STT' && nativeBalance < 1) || (NATIVE_SYMBOL === 'ETH' && nativeBalance < 0.002));
-  const hasInsufficientNative = item && item.currency === NATIVE_SYMBOL && nativeBalance < (Number(item.usdPrice) * quantity);
-
-  // Show warning if low balance
-  const showLowNativeWarning = hasLowNative;
-
-  // Show error if insufficient for this purchase
-  const showInsufficientNativeError = hasInsufficientNative;
+  // Determine low/insufficient balance for ETH and STT
+  let showLowNativeWarning = false;
+  let showInsufficientNativeError = false;
+  let requiredNative = 0;
+  if (NATIVE_SYMBOL === 'ETH') {
+    showLowNativeWarning = nativeBalance < 0.002;
+    requiredNative = itemEthPrice * quantity;
+    showInsufficientNativeError = nativeBalance < requiredNative;
+  } else if (NATIVE_SYMBOL === 'STT') {
+    showLowNativeWarning = nativeBalance < 1;
+    requiredNative = Number(item?.usdPrice || 0) * quantity;
+    showInsufficientNativeError = nativeBalance < requiredNative;
+  }
 
   // Handler for confirm buy with pre-check
   const handleConfirm = async () => {
     if (!item || !address || pending) return;
-    if (hasLowNative || hasInsufficientNative) {
+    if (showLowNativeWarning || showInsufficientNativeError) {
       alert(`You have insufficient ${NATIVE_SYMBOL} to complete this purchase. Please top up your balance and try again.`);
       return;
     }
@@ -341,7 +369,7 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
               {/* Show insufficient balance error */}
               {showInsufficientNativeError && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-2 mt-2 text-sm text-red-600">
-                  Insufficient {NATIVE_SYMBOL} balance. You need at least {Number(item.usdPrice) * quantity} {NATIVE_SYMBOL} to buy this item.
+                  Insufficient {NATIVE_SYMBOL} balance. You need at least {requiredNative} {NATIVE_SYMBOL} to buy this item.
                 </div>
               )}
               {/* Show balances */}
