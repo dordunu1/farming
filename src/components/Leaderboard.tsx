@@ -26,12 +26,12 @@ function Leaderboard() {
     async function fetchLeaderboard() {
       const usersSnap = await getDocs(getChainCollection('users'));
       const users = usersSnap.docs.map(doc => doc.data());
-      // Sort by totalHarvests, then by riceTokens
+      // Sort by riceTokens, then by totalHarvests
       const sorted = [...users].sort((a, b) => {
-        if ((b.totalHarvests || 0) !== (a.totalHarvests || 0)) {
-          return (b.totalHarvests || 0) - (a.totalHarvests || 0);
+        if ((b.riceTokens || 0) !== (a.riceTokens || 0)) {
+          return (b.riceTokens || 0) - (a.riceTokens || 0);
         }
-        return (b.riceTokens || 0) - (a.riceTokens || 0);
+        return (b.totalHarvests || 0) - (a.totalHarvests || 0);
       });
       // Map to leaderboard format
       const mapped = sorted.map((u, i) => ({
