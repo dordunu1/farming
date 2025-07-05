@@ -123,4 +123,153 @@ exports.authWithWallet = require('firebase-functions').https.onRequest(async (re
     console.error('Auth error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
+});
+
+exports.verifyPlayer = require('firebase-functions').https.onRequest(async (req, res) => {
+  // CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+
+  try {
+    // Extract address from URL path: /verify-player/{address}
+    const address = req.path.split('/').pop();
+    
+    if (!address) {
+      return res.status(400).json({ 
+        error: 'Missing wallet address',
+        success: false 
+      });
+    }
+
+    // Validate address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return res.status(400).json({ 
+        error: 'Invalid wallet address format',
+        success: false 
+      });
+    }
+
+    // Connect to Somnia testnet
+    const provider = new ethers.JsonRpcProvider('https://rpc.ankr.com/somnia_testnet/6e3fd81558cf77b928b06b38e9409b4677b637118114e83364486294d5ff4811');
+    const contract = new ethers.Contract('0x489439886e58e5bedF4ab8444eaE7516340453f7', ABI, provider);
+
+    // Check on-chain RT balance
+    const riceTokens = await contract.riceTokens(address);
+    const balance = Number(riceTokens);
+
+    // Check if player has earned at least 5 RT (or whatever number you want)
+    const hasEarned2RT = balance >= 200;
+
+    return res.json({
+      success: true,
+      walletAddress: address,
+      riceTokensBalance: balance,
+      hasEarned2RT: hasEarned2RT,
+      verified: hasEarned2RT,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (err) {
+    console.error('Verification error:', err);
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      success: false 
+    });
+  }
+});
+
+exports.verifyPlayerByEmail = require('firebase-functions').https.onRequest(async (req, res) => {
+  // CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(204).send('');
+  }
+
+  try {
+    // Extract email from URL path: /verify-player-email/{email}
+    const email = req.path.split('/').pop();
+    
+    if (!email) {
+      return res.status(400).json({ 
+        error: 'Missing email address',
+        success: false 
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        error: 'Invalid email format',
+        success: false 
+      });
+    }
+
+    // Look up wallet address by email in /emailToWallet/{email}
+    const db = admin.firestore();
+    const emailDoc = await db.collection('emailToWallet').doc(email).get();
+    if (!emailDoc.exists) {
+      return res.status(404).json({ 
+        error: 'Email not found in our system',
+        success: false 
+      });
+    }
+    const walletAddress = emailDoc.data().walletAddress;
+    if (!walletAddress) {
+      return res.status(404).json({ 
+        error: 'No wallet address found for this email',
+        success: false 
+      });
+    }
+    // Fetch user document by wallet address
+    const userDoc = await db.collection('chains').doc('SOMNIA').collection('users').doc(walletAddress).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ 
+        error: 'No user found for this wallet address',
+        success: false 
+      });
+    }
+    const userData = userDoc.data();
+    // Always use inGameWalletAddress for on-chain check
+    const inGameWallet = userData.inGameWalletAddress;
+    if (!inGameWallet) {
+      return res.status(404).json({ 
+        error: 'No in-game wallet address found for this email',
+        success: false 
+      });
+    }
+    // Connect to Somnia testnet
+    const provider = new ethers.JsonRpcProvider('https://rpc.ankr.com/somnia_testnet/6e3fd81558cf77b928b06b38e9409b4677b637118114e83364486294d5ff4811');
+    const contract = new ethers.Contract('0x489439886e58e5bedF4ab8444eaE7516340453f7', ABI, provider);
+    // Check on-chain RT balance
+    const riceTokens = await contract.riceTokens(inGameWallet);
+    const balance = Number(riceTokens);
+    // Check if player has earned at least 200 RT
+    const hasEarnedEnoughRT = balance >= 200;
+    return res.json({
+      success: true,
+      email: email,
+      walletAddress: walletAddress,
+      inGameWalletAddress: inGameWallet,
+      riceTokensBalance: balance,
+      hasEarnedEnoughRT: hasEarnedEnoughRT,
+      verified: hasEarnedEnoughRT,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (err) {
+    console.error('Email verification error:', err);
+    return res.status(500).json({ 
+      error: 'Internal server error',
+      success: false 
+    });
+  }
 }); 

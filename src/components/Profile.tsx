@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount, useWriteContract } from 'wagmi';
 // @ts-ignore
 import { useContractRead } from 'wagmi';
-import { getUserData } from '../lib/firebaseUser';
+import { getUserData, setUserEmail } from '../lib/firebaseUser';
 import { db } from '../lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { useWallet } from '../hooks/useWallet';
@@ -46,6 +46,9 @@ export default function Profile({
   const [claimSuccess, setClaimSuccess] = useState(false);
   const [claimError, setClaimError] = useState('');
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [emailSaved, setEmailSaved] = useState(false);
+  const [emailError, setEmailError] = useState('');
 
   // Fetch on-chain RT balance
   const { data: onChainRiceTokens, refetch: refetchRiceTokens } = useContractRead({
@@ -252,6 +255,19 @@ export default function Profile({
     }
   };
 
+  // Prefill email if already set
+  useEffect(() => {
+    if (userStats && userStats.email) {
+      setEmail(userStats.email);
+      setEmailSaved(true);
+    }
+  }, [userStats]);
+
+  // Helper to map email to wallet address
+  async function setEmailToWalletMapping(email: string, walletAddress: string) {
+    await setDoc(doc(db, 'emailToWallet', email), { walletAddress });
+  }
+
   if (!isWalletConnected || !address) {
     return (
       <div className="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto text-center">
@@ -286,10 +302,10 @@ export default function Profile({
   const progressPercentage = (currentLevelXP / 300) * 100;
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto text-center relative">
+    <div className="bg-white rounded-lg shadow-lg p-4 max-w-md mx-auto text-center relative" style={{ marginTop: '12px' }}>
       {/* Logout button in top left */}
       <button
-        className="absolute top-4 left-4 bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-red-700 transition flex items-center gap-1"
+        className="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 rounded-lg text-xs font-medium hover:bg-red-700 transition flex items-center gap-1"
         onClick={async () => {
           await clearAppCache();
           window.AppKit?.disconnect?.();
@@ -298,23 +314,23 @@ export default function Profile({
       >
         <LogOut className="w-4 h-4 mr-1" /> Logout
       </button>
-      <div className="text-center mb-6 mt-8">
-        <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden border-4 border-emerald-200 shadow-lg bg-white/60 backdrop-blur">
+      <div className="text-center mb-3 mt-4">
+        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-2 overflow-hidden border-4 border-emerald-200 shadow bg-white/60 backdrop-blur">
           <img
             src={userStats.pfp || `https://api.dicebear.com/7.x/avataaars/svg?seed=${address}`}
             alt="Avatar"
-            className="w-20 h-20 object-cover"
+            className="w-16 h-16 object-cover"
           />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 tracking-tight">Player Profile</h2>
-        <p className="text-sm text-gray-600 mt-1 font-mono">
+        <h2 className="text-xl font-bold text-gray-800 tracking-tight">Player Profile</h2>
+        <p className="text-xs text-gray-600 mt-1 font-mono">
           {gameWallet?.address
             ? `${gameWallet.address.slice(0, 6)}...${gameWallet.address.slice(-4)}`
             : 'Loading...'}
         </p>
-        <div className="flex justify-center mt-2">
+        <div className="flex justify-center mt-1">
           {walletLoading ? (
-            <div className="flex items-center gap-1 bg-gray-100 text-gray-600 font-semibold rounded-full px-3 py-1 text-xs">
+            <div className="flex items-center gap-1 bg-gray-100 text-gray-600 font-semibold rounded-full px-2 py-1 text-xs">
               <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
@@ -323,8 +339,8 @@ export default function Profile({
             </div>
           ) : gameWallet ? (
             <button
-              className="flex items-center gap-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold rounded-full px-3 py-1 text-xs shadow border border-emerald-200"
-              style={{ fontSize: '12px' }}
+              className="flex items-center gap-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-semibold rounded-full px-2 py-1 text-xs shadow border border-emerald-200"
+              style={{ fontSize: '11px' }}
               onClick={() => setShowWalletModal(true)}
             >
               <Wallet className="w-4 h-4" />
@@ -333,8 +349,8 @@ export default function Profile({
           ) : (
             <div className="flex flex-col items-center gap-1">
               <button
-                className="flex items-center gap-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-semibold rounded-full px-3 py-1 text-xs shadow border border-yellow-200"
-                style={{ fontSize: '12px' }}
+                className="flex items-center gap-1 bg-yellow-100 hover:bg-yellow-200 text-yellow-800 font-semibold rounded-full px-2 py-1 text-xs shadow border border-yellow-200"
+                style={{ fontSize: '11px' }}
                 onClick={handleRefreshWallet}
                 disabled={walletLoading}
               >
@@ -348,18 +364,18 @@ export default function Profile({
           )}
         </div>
       </div>
-      <div className="space-y-4">
-        <div className="bg-purple-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-purple-100 shadow-sm">
+      <div className="space-y-3">
+        <div className="bg-purple-50/70 backdrop-blur rounded-xl p-3 flex flex-col gap-1 border border-purple-100 shadow-sm">
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <Star className="w-5 h-5 text-purple-600" />
               <span className="font-semibold text-gray-800">Level {userStats.playerLevel}</span>
             </div>
-            <span className="text-sm text-gray-600">{userStats.totalXP} XP</span>
+            <span className="text-xs text-gray-600">{userStats.totalXP} XP</span>
           </div>
-          <div className="w-full bg-gray-200/60 rounded-full h-2">
+          <div className="w-full bg-gray-200/60 rounded-full h-1.5">
             <div
-              className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-1.5 rounded-full transition-all duration-300"
               style={{ width: `${progressPercentage}%` }}
             />
           </div>
@@ -367,7 +383,7 @@ export default function Profile({
             {currentLevelXP}/300 XP to next level
           </p>
         </div>
-        <div className="bg-yellow-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-yellow-100 shadow-sm">
+        <div className="bg-yellow-50/70 backdrop-blur rounded-xl p-3 flex flex-col gap-1 border border-yellow-100 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
@@ -378,7 +394,7 @@ export default function Profile({
               <span className="text-xs text-gray-600">Farm Value: {farmValue}</span>
               <span className="text-xs text-gray-600">Quests/Streaks: {questValue}</span>
             </div>
-            <span className="text-2xl font-bold text-yellow-600 drop-shadow-sm">{onChainRT ?? '...'}</span>
+            <span className="text-xl font-bold text-yellow-600 drop-shadow-sm">{onChainRT ?? '...'}</span>
           </div>
           
           {rtInt >= 500 ? (
@@ -497,33 +513,81 @@ export default function Profile({
               )}
             </>
           ) : (
-            <div className="mt-3 w-full text-center text-xs text-gray-500 bg-yellow-100/80 rounded-lg py-2">
-              You need at least 500 RT to claim RISE tokens.
-              <br />
-              Current balance: {Number(onChainRiceTokens || 0)} RT
+            <div className="mt-2 w-full text-center text-xs text-gray-500 bg-yellow-100/80 rounded-lg py-1">
+              You need at least 500 RT to claim RISE tokens.<br />Current balance: {Number(onChainRiceTokens || 0)} RT
             </div>
           )}
         </div>
-        <div className="bg-blue-50/70 backdrop-blur rounded-xl p-4 flex flex-col gap-2 border border-blue-100 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
+        <div className="bg-blue-50/70 backdrop-blur rounded-xl p-3 flex flex-col gap-1 border border-blue-100 shadow-sm">
+          <div className="flex items-center gap-2 mb-1">
             <Trophy className="w-5 h-5 text-blue-600" />
             <span className="font-semibold text-gray-800">Your Progress</span>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="grid grid-cols-3 gap-1 text-center">
             <div>
-              <span className="block text-lg font-bold text-emerald-600">{plantedCount}</span>
+              <span className="block text-base font-bold text-emerald-600">{plantedCount}</span>
               <span className="text-xs text-gray-600">Planted</span>
             </div>
             <div>
-              <span className="block text-lg font-bold text-blue-600">{wateredCount}</span>
+              <span className="block text-base font-bold text-blue-600">{wateredCount}</span>
               <span className="text-xs text-gray-600">Watered</span>
             </div>
             <div>
-              <span className="block text-lg font-bold text-yellow-600">{harvestedCount}</span>
+              <span className="block text-base font-bold text-yellow-600">{harvestedCount}</span>
               <span className="text-xs text-gray-600">Harvested</span>
             </div>
           </div>
         </div>
+        {import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' && (
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-1">Quest Verification Email</h3>
+            <p className="text-xs text-gray-500 mb-1">Submit your email for quest verification.</p>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setEmailError('');
+                setEmailSaved(false);
+                // Basic email validation
+                if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+                  setEmailError('Please enter a valid email address.');
+                  return;
+                }
+                try {
+                  if (gameWallet?.address) {
+                    console.log('Submitting email for quest verification:', { address: gameWallet.address, email });
+                    await setUserEmail(address, email);
+                    await setEmailToWalletMapping(email, address);
+                    setEmailSaved(true);
+                  } else {
+                    setEmailError('Wallet not loaded.');
+                  }
+                } catch (err) {
+                  console.error('Email save error:', err);
+                  setEmailError('Failed to save email.');
+                }
+              }}
+              className="flex flex-col gap-1"
+            >
+              <input
+                type="email"
+                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                placeholder="your@email.com"
+                value={email}
+                onChange={e => { setEmail(e.target.value); setEmailSaved(false); setEmailError(''); }}
+                disabled={emailSaved}
+              />
+              <button
+                type="submit"
+                className="bg-emerald-600 text-white rounded px-3 py-1 text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
+                disabled={emailSaved}
+              >
+                {emailSaved ? 'Email Saved!' : 'Submit Email'}
+              </button>
+              {emailError && <div className="text-red-600 text-xs mt-1">{emailError}</div>}
+              {emailSaved && <div className="text-green-600 text-xs mt-1">Your email is saved for quest verification.</div>}
+            </form>
+          </div>
+        )}
       </div>
 
       {showWalletModal && <WalletModal />}
