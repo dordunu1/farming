@@ -959,7 +959,12 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                       e.stopPropagation();
                       handleBuy(item);
                     }}
-                    disabled={item.comingSoon || !isWalletConnected || (item.currency === 'RT' && Number(onChainRiceTokens || 0) < item.usdPrice)}
+                    disabled={
+                      item.comingSoon ||
+                      !isWalletConnected ||
+                      (item.currency === 'RT' && Number(onChainRiceTokens || 0) < item.usdPrice) ||
+                      Number(supply) <= 0 // disable if supply is 0 or less
+                    }
                   >
                     Buy Now
                   </button>
