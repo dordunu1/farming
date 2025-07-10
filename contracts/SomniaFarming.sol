@@ -148,12 +148,12 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 1e18,
             paymentToken: address(0),
             baseReward: 15,
-            baseGrowthTime: 420, // 7 minutes
+            baseGrowthTime: 3600, // 60 minutes
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 10000,
-            supply: 10000
+            maxSupply: 500000,
+            supply: 500000
         });
         // Update Basic Rice Seed (Bundle)
         bundles[13] = Bundle({
@@ -164,8 +164,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 1e18,
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 100000,
+            supply: 100000
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
@@ -180,12 +180,12 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 1e18,
             paymentToken: address(0),
             baseReward: 50,
-            baseGrowthTime: 360, // 6 minutes
+            baseGrowthTime: 2400, // 40 minutes
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 4000,
-            supply: 4000
+            maxSupply: 500000,
+            supply: 500000
         });
         // Update Premium Rice Seed (Bundle)
         bundles[14] = Bundle({
@@ -196,8 +196,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 1e18,
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 250000,
+            supply: 250000
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
@@ -212,12 +212,12 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 1e18,
             paymentToken: address(0),
             baseReward: 70,
-            baseGrowthTime: 300, // 5 minutes
+            baseGrowthTime: 1200, // 20 minutes
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 2000,
-            supply: 2000
+            maxSupply: 500000,
+            supply: 500000
         });
         // Update Hybrid Rice Seed (Bundle)
         bundles[15] = Bundle({
@@ -228,8 +228,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 1e18,
             paymentToken: address(0),
             active: true,
-            maxSupply: 500,
-            supply: 500
+            maxSupply: 250000,
+            supply: 250000
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;
@@ -249,8 +249,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 3750,
-            supply: 3750
+            maxSupply: 500000,
+            supply: 500000
         });
         // Golden Harvester (Bundle)
         bundles[16] = Bundle({
@@ -261,8 +261,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 1e18,
             paymentToken: address(0),
             active: true,
-            maxSupply: 1875,
-            supply: 1875
+            maxSupply: 250000,
+            supply: 250000
         });
         bundles[16].itemIds[0] = GOLDEN_HARVESTER_SINGLE_ID;
         bundles[16].itemAmounts[0] = 2;
@@ -323,8 +323,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 50000,
-            supply: 50000
+            maxSupply: 500000,
+            supply: 500000
         });
 
         // Initialize bundles with supply
@@ -385,8 +385,8 @@ contract SomniaFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 500000,
+            supply: 500000
         });
     }
 

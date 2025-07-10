@@ -1,7 +1,7 @@
 const hre = require("hardhat");
 
 async function main() {
-  const contractAddress = "0xfDA2160b7B8D43d08085195252504eF2CAaec1C0";
+  const contractAddress = "0x260dDaeAF6e47183A9B4778B8C5A793904467D56";
   
   console.log("Verifying contract...");
   try {

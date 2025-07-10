@@ -81,7 +81,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single basic rice seed for everyday farming',
       cost: '50 RT',
       energyCost: 5,
-      growthTime: 8,
+      growthTime: 60, // 60 minutes
       yield: '15 RT',
       bundleYield: '21 RT',
       bundleBonus: '+1.5% growth/yield',
@@ -94,7 +94,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single premium rice seed with higher yield',
       cost: '0.005 ETH',
       energyCost: 10,
-      growthTime: 6,
+      growthTime: 40, // 40 minutes
       yield: '50 RT',
       bundleYield: '60 RT',
       bundleBonus: '+3% growth/yield',
@@ -107,7 +107,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single hybrid rice seed with unique properties',
       cost: '0.01 ETH',
       energyCost: 20,
-      growthTime: 4,
+      growthTime: 20, // 20 minutes
       yield: '70 RT',
       bundleYield: '85 RT',
       bundleBonus: '+7% growth/yield',
@@ -386,7 +386,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
                         <div className="text-xs text-gray-600 mb-1">{seed.description}</div>
                         <div className="flex flex-wrap gap-4 text-xs mb-1">
                           <span className="text-blue-500 font-semibold">Energy: {seed.energyCost}</span>
-                          <span className="text-gray-500">Growth: {seed.growthTime}h</span>
+                          <span className="text-gray-500">Growth: {seed.growthTime} min</span>
                           <span className="text-yellow-600">Yield: {seed.yield} <span className="text-gray-400">(Single)</span></span>
                           <span className="text-yellow-700">Bundle Yield: {seed.bundleYield} <span className="text-gray-400">(Bundle)</span></span>
                           <span className="text-emerald-700">Bonus: {seed.bundleBonus}</span>
@@ -416,7 +416,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
                 </div>
                 {/* Add note about actual on-chain deduction */}
                 <div className="mt-1 text-xs text-blue-600 font-medium italic">Note: Only 1 energy will actually be deducted per planting, regardless of the seed's listed cost.</div>
-                <div className="flex justify-between"><span>Growth Time:</span> <span className="font-bold">{selectedSeed.growthTime}h</span></div>
+                <div className="flex justify-between"><span>Growth Time:</span> <span className="font-bold">{selectedSeed.growthTime} min</span></div>
                 <div className="flex justify-between"><span>Expected Yield:</span> <span className={`font-bold ${selectedSeed.bundles > 0 ? 'text-yellow-700' : 'text-emerald-700'}`}>{selectedSeed.bundles > 0 ? selectedSeed.bundleYield : selectedSeed.yield}</span></div>
                 <div className="flex justify-between"><span>Bonus:</span> <span className={`font-bold ${selectedSeed.bundles > 0 ? 'text-yellow-700' : 'text-emerald-700'}`}>{selectedSeed.bundles > 0 ? selectedSeed.bundleBonus : 'None'}</span></div>
                 {selectedSeed.bundles > 0 && (

@@ -593,7 +593,7 @@ export async function decreaseWaterLevels(walletAddress: string) {
   });
   
   await setDoc(userRef, { plots: updatedPlots }, { merge: true });
-}
+} 
 
 export async function setUserEmail(walletAddress: string, email: string) {
   const userRef = getUserDoc(walletAddress);

@@ -61,7 +61,7 @@ const marketItems: MarketItem[] = [
     level: 1,
     benefits: ['Reliable growth', 'Low cost'],
     riseReward: 15,
-    details: `Growth time: 8h\nYield: 15 RT\nNo bundle bonus.`,
+    details: `Growth time: 60 min\nYield: 15 RT\nNo bundle bonus.`,
     supply: 0
   },
   {
@@ -74,10 +74,10 @@ const marketItems: MarketItem[] = [
     rarity: 'common',
     icon: <span className="text-xl">🌾</span>,
     level: 1,
-    benefits: ['+40% yield and growth'],
+    benefits: ['+40% yield and growth', 'Each bundle contains 5 Basic Rice Seeds'],
     riseReward: 21,
-    details: `Growth time: 4.8h (reduced by 40%)\nYield: 21 RT (increased by 40%)`,
-    supply: 0
+    details: `Growth time: 36 min (reduced by 40%)\nYield: 21 RT (increased by 40%)`,
+    supply: 10000
   },
   {
     id: 10, // Premium Rice Seed (Single)
@@ -91,7 +91,7 @@ const marketItems: MarketItem[] = [
     level: 2,
     benefits: ['Faster growth', 'Higher yield'],
     riseReward: 50,
-    details: `Growth time: 6h\nYield: 50 RT\nNo bundle bonus.`,
+    details: `Growth time: 40 min\nYield: 50 RT\nNo bundle bonus.`,
     supply: 0
   },
   {
@@ -104,10 +104,10 @@ const marketItems: MarketItem[] = [
     rarity: 'rare',
     icon: <span className="text-xl">🌾</span>,
     level: 2,
-    benefits: ['+20% yield and growth'],
+    benefits: ['+20% yield and growth', 'Each bundle contains 2 Premium Rice Seeds'],
     riseReward: 60,
-    details: `Growth time: 4.8h (reduced by 20%)\nYield: 60 RT (increased by 20%)`,
-    supply: 0
+    details: `Growth time: 32 min (reduced by 20%)\nYield: 60 RT (increased by 20%)`,
+    supply: 10000
   },
   {
     id: 11, // Hybrid Rice Seed (Single)
@@ -121,7 +121,7 @@ const marketItems: MarketItem[] = [
     level: 3,
     benefits: ['Unique properties', 'Legendary yield'],
     riseReward: 70,
-    details: `Growth time: 4h\nYield: 70 RT\nNo bundle bonus.`,
+    details: `Growth time: 20 min\nYield: 70 RT\nNo bundle bonus.`,
     supply: 0
   },
   {
@@ -134,10 +134,10 @@ const marketItems: MarketItem[] = [
     rarity: 'legendary',
     icon: <span className="text-xl">🌾</span>,
     level: 3,
-    benefits: ['+21.43% yield and growth'],
+    benefits: ['+21.43% yield and growth', 'Each bundle contains 2 Hybrid Rice Seeds'],
     riseReward: 84,
-    details: `Growth time: 3.14h (reduced by 21.43%)\nYield: 84 RT (increased by 21.43%)`,
-    supply: 0
+    details: `Growth time: 15.7 min (reduced by 21.43%)\nYield: 84 RT (increased by 21.43%)`,
+    supply: 10000
   },
   {
     id: 17, // Golden Harvester (Single)
@@ -151,7 +151,7 @@ const marketItems: MarketItem[] = [
     level: 4,
     benefits: ['Single-plot harvest', '+20% bonus tokens', 'Instant harvesting'],
     details: 'Golden Harvester (Single): Instantly harvests one plot and grants 20% bonus RT tokens per harvest. Required for single-plot harvests.',
-    supply: 0
+    supply: 500000
   },
   {
     id: 16, // Golden Harvester (Bundle)
@@ -165,7 +165,7 @@ const marketItems: MarketItem[] = [
     level: 4,
     benefits: ['2x Golden Harvesters'],
     details: 'Golden Harvester Bundle: Two Golden Harvesters for large-scale farming.',
-    supply: 0
+    supply: 500000
   },
   {
     id: 12, // Fertilizer Spreader
@@ -208,7 +208,7 @@ const marketItems: MarketItem[] = [
     level: 1,
     benefits: ['+100% water level', 'Improved crop quality'],
     details: 'Use this tool to water your crops and keep them healthy. Each use increases water level by 100%.',
-    supply: 50000
+    supply: 500000
   },
   {
     id: 19, // Energy Booster
@@ -222,7 +222,7 @@ const marketItems: MarketItem[] = [
     level: 1,
     benefits: ['+5 energy', 'Continue farming'],
     details: 'Energy Booster: Replenish your energy by 5 points. Required for farming actions like planting, watering, and harvesting.',
-    supply: 0
+    supply: 500000
   },
 ];
 
