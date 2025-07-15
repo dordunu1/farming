@@ -538,56 +538,7 @@ export default function Profile({
             </div>
           </div>
         </div>
-        {import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' && (
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-1">Quest Verification Email</h3>
-            <p className="text-xs text-gray-500 mb-1">Submit your email for quest verification.</p>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                setEmailError('');
-                setEmailSaved(false);
-                // Basic email validation
-                if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-                  setEmailError('Please enter a valid email address.');
-                  return;
-                }
-                try {
-                  if (gameWallet?.address) {
-                    console.log('Submitting email for quest verification:', { address: gameWallet.address, email });
-                    await setUserEmail(address, email);
-                    await setEmailToWalletMapping(email, address);
-                    setEmailSaved(true);
-                  } else {
-                    setEmailError('Wallet not loaded.');
-                  }
-                } catch (err) {
-                  console.error('Email save error:', err);
-                  setEmailError('Failed to save email.');
-                }
-              }}
-              className="flex flex-col gap-1"
-            >
-              <input
-                type="email"
-                className="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                placeholder="your@email.com"
-                value={email}
-                onChange={e => { setEmail(e.target.value); setEmailSaved(false); setEmailError(''); }}
-                disabled={emailSaved}
-              />
-              <button
-                type="submit"
-                className="bg-emerald-600 text-white rounded px-3 py-1 text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-60"
-                disabled={emailSaved}
-              >
-                {emailSaved ? 'Email Saved!' : 'Submit Email'}
-              </button>
-              {emailError && <div className="text-red-600 text-xs mt-1">{emailError}</div>}
-              {emailSaved && <div className="text-green-600 text-xs mt-1">Your email is saved for quest verification.</div>}
-            </form>
-          </div>
-        )}
+        {/* Quest Verification Email section removed as requested */}
       </div>
 
       {showWalletModal && <WalletModal />}
