@@ -132,7 +132,14 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
   useEffect(() => {
     async function fetchFertilizer() {
       if (!inGameWallet) return;
-      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      let rpcUrl = '';
+      if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
+        rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+        rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+      } else {
+        rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
+      }
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, provider);
       try {
@@ -406,7 +413,14 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
     setIsRevivePending(true);
     setIsReviveSuccess(false);
     try {
-      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      let rpcUrl = '';
+      if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
+        rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+        rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+      } else {
+        rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
+      }
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
@@ -520,7 +534,8 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
           const waterBar = Math.max(0, plot.waterLevel);
           // Determine status for rendering
           let renderStatus = plot.status;
-          if (plot.status !== 'empty' && isReady) {
+          // If plot is mature, always show as 'ready' (harvestable)
+          if (plot.status !== 'empty' && plot.readyAt && Date.now() >= plot.readyAt * 1000) {
             renderStatus = 'ready';
           }
           // --- Render ---

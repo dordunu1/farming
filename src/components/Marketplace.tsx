@@ -9,10 +9,16 @@ import { db, CURRENT_CHAIN } from '../lib/firebase';
 import { useWallet as useInGameWallet } from '../hooks/useWallet';
 import { ethers } from 'ethers';
 import { shredsService, isRiseTestnet } from '../services/shredsService';
+
+// Set NATIVE_SYMBOL based on chain
+let NATIVE_SYMBOL = import.meta.env.VITE_CURRENCY_SYMBOL || 'ETH';
+if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+  NATIVE_SYMBOL = import.meta.env.VITE_NEXUS_CURRENCY_SYMBOL || 'NEX';
+}
+
 const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS as `0x${string}`;
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as `0x${string}`;
 const DURABLE_TOOL_IDS = [17, 18, 6]; // Golden Harvester (Single), Bundle, Auto-Watering System
-const NATIVE_SYMBOL = import.meta.env.VITE_CURRENCY_SYMBOL || 'ETH';
 const CHAIN_ID = import.meta.env.VITE_CHAIN_ID;
 
 interface MarketplaceProps {
@@ -251,6 +257,8 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
     let rpcUrl = '';
     if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
       rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+    } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+      rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
     } else {
       rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
     }
@@ -627,7 +635,14 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
     setSuccess(false);
     try {
       // Get provider from env/config
-      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      let rpcUrl = '';
+      if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
+        rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+        rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+      } else {
+        rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
+      }
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(FARMING_ADDRESS, RiseFarmingABI as any, wallet);
@@ -862,11 +877,11 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 ethAmount = undefined;
                 supply = '...';
               }
-              if (CHAIN_ID === '50312') {
+              if (CHAIN_ID === '50312' || import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
                 showUsd = false;
               }
             } else {
-              if (CHAIN_ID === '50312') { // Somnia
+              if (CHAIN_ID === '50312' || import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') { // Somnia
                 if (item.currency === NATIVE_SYMBOL) {
                   ethAmount = '1.000000';
                   showUsd = false;

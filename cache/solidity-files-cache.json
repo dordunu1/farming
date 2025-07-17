@@ -266,6 +266,47 @@
       "artifacts": [
         "SomniaFarming"
       ]
+    },
+    "E:\\farming\\contracts\\NexusFarming.sol": {
+      "lastModificationDate": 1752788990853,
+      "contentHash": "b4e253843a807c4848ee1656f4bf1105",
+      "sourceName": "contracts/NexusFarming.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/Pausable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "NexusFarming"
+      ]
     }
   }
 }

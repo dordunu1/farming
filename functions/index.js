@@ -154,23 +154,37 @@ exports.verifyPlayer = require('firebase-functions').https.onRequest(async (req,
       });
     }
 
+    // Fetch user document by address (document ID)
+    const db = admin.firestore();
+    const userDoc = await db.collection('chains').doc('SOMNIA').collection('users').doc(address).get();
+    if (!userDoc.exists) {
+      return res.status(404).json({ 
+        error: 'User not found',
+        success: false 
+      });
+    }
+    const userData = userDoc.data();
+    // Use inGameWalletAddress if present, otherwise fallback to address
+    const onChainAddress = userData.inGameWalletAddress || address;
+
     // Connect to Somnia testnet
     const provider = new ethers.JsonRpcProvider('https://rpc.ankr.com/somnia_testnet/6e3fd81558cf77b928b06b38e9409b4677b637118114e83364486294d5ff4811');
     const contract = new ethers.Contract('0x260dDaeAF6e47183A9B4778B8C5A793904467D56', ABI, provider);
 
     // Check on-chain RT balance
-    const riceTokens = await contract.riceTokens(address);
+    const riceTokens = await contract.riceTokens(onChainAddress);
     const balance = Number(riceTokens);
 
-    // Check if player has earned at least 5 RT (or whatever number you want)
-    const hasEarned2RT = balance >= 200;
+    // Check if player has earned at least 200 RT
+    const hasEarnedEnoughRT = balance >= 200;
 
     return res.json({
       success: true,
       walletAddress: address,
+      inGameWalletAddress: onChainAddress,
       riceTokensBalance: balance,
-      hasEarned2RT: hasEarned2RT,
-      verified: hasEarned2RT,
+      hasEarnedEnoughRT: hasEarnedEnoughRT,
+      verified: hasEarnedEnoughRT,
       timestamp: new Date().toISOString()
     });
 

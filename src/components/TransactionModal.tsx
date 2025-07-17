@@ -98,11 +98,15 @@ function TransactionModal({
       hasUpdatedRef.current = true;
       (async () => {
         // Fetch latest on-chain plot data after watering using inGameAddress
-        const provider = new ethers.providers.JsonRpcProvider(
-          import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
-            ? import.meta.env.VITE_RISE_RPC_URL 
-            : import.meta.env.VITE_RPC_URL
-        );
+        let rpcUrl = '';
+        if (import.meta.env.VITE_CURRENT_CHAIN === 'RISE') {
+          rpcUrl = import.meta.env.VITE_RISE_RPC_URL;
+        } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+          rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+        } else {
+          rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+        }
+        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
         const contract = new ethers.Contract(
           import.meta.env.VITE_FARMING_ADDRESS,
           RiseFarmingABI,
@@ -171,11 +175,15 @@ function TransactionModal({
       hasUpdatedRef.current = true;
       (async () => {
         // Fetch latest on-chain plot data after harvest using inGameAddress
-        const provider = new ethers.providers.JsonRpcProvider(
-          import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
-            ? import.meta.env.VITE_RISE_RPC_URL 
-            : import.meta.env.VITE_RPC_URL
-        );
+        let rpcUrl = '';
+        if (import.meta.env.VITE_CURRENT_CHAIN === 'RISE') {
+          rpcUrl = import.meta.env.VITE_RISE_RPC_URL;
+        } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+          rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+        } else {
+          rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+        }
+        const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
         const contract = new ethers.Contract(
           import.meta.env.VITE_FARMING_ADDRESS,
           RiseFarmingABI,
@@ -256,11 +264,15 @@ function TransactionModal({
         (async () => {
           try {
             // Use ethers.js to fetch the latest on-chain plot data (optional, for sync)
-            const provider = new ethers.providers.JsonRpcProvider(
-              import.meta.env.VITE_CURRENT_CHAIN === 'RISE' 
-                ? import.meta.env.VITE_RISE_RPC_URL 
-                : import.meta.env.VITE_RPC_URL
-            );
+            let rpcUrl = '';
+            if (import.meta.env.VITE_CURRENT_CHAIN === 'RISE') {
+              rpcUrl = import.meta.env.VITE_RISE_RPC_URL;
+            } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+              rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+            } else {
+              rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+            }
+            const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
             const contract = new ethers.Contract(
               import.meta.env.VITE_FARMING_ADDRESS,
               RiseFarmingABI,
@@ -330,7 +342,14 @@ function TransactionModal({
     if (!inGameWallet) return;
     setTransactionStatus('pending');
     try {
-      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      let rpcUrl = '';
+      if (import.meta.env.VITE_CURRENT_CHAIN === 'RISE') {
+        rpcUrl = import.meta.env.VITE_RISE_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+        rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+      } else {
+        rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+      }
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);

@@ -26,11 +26,17 @@ const config = {
       chainId: 50312,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
+    'nexus-testnet': {
+      url: process.env.NEXUS_RPC_URL || 'https://testnet3.rpc.nexus.xyz',
+      chainId: 3940,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: {
       'rise-testnet': 'empty',
       'somnia-testnet': 'empty',
+      'nexus-testnet': 'empty', // Placeholder, update if Nexus explorer supports verification
     },
     customChains: [
       {
@@ -47,6 +53,14 @@ const config = {
         urls: {
           apiURL: 'https://shannon-explorer.somnia.network/api',
           browserURL: 'https://shannon-explorer.somnia.network',
+        },
+      },
+      {
+        network: 'nexus-testnet',
+        chainId: 3940,
+        urls: {
+          apiURL: 'https://testnet3.explorer.nexus.xyz/api', // Placeholder, update if available
+          browserURL: 'https://testnet3.explorer.nexus.xyz',
         },
       },
     ],

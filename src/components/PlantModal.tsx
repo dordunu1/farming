@@ -73,6 +73,8 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
   );
 
   // Seed meta (should match contract/marketplace)
+  const isNexus = import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS';
+  const isSomnia = import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA';
   const seedOptions = [
     {
       id: 9,
@@ -81,7 +83,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single basic rice seed for everyday farming',
       cost: '50 RT',
       energyCost: 5,
-      growthTime: 60, // 60 minutes
+      growthTime: isSomnia ? 480 : 7, // 480 min (8h) for Somnia, 7 min for Nexus/Rise
       yield: '15 RT',
       bundleYield: '21 RT',
       bundleBonus: '+1.5% growth/yield',
@@ -92,9 +94,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       name: 'Premium Rice Seed',
       rarity: 'rare',
       description: 'A single premium rice seed with higher yield',
-      cost: '0.005 ETH',
+      cost: isSomnia ? '0.005 ETH' : '0.02 NEX',
       energyCost: 10,
-      growthTime: 40, // 40 minutes
+      growthTime: isSomnia ? 240 : 5, // 240 min (4h) for Somnia, 5 min for Nexus/Rise
       yield: '50 RT',
       bundleYield: '60 RT',
       bundleBonus: '+3% growth/yield',
@@ -105,9 +107,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       name: 'Hybrid Rice Seed',
       rarity: 'legendary',
       description: 'A single hybrid rice seed with unique properties',
-      cost: '0.01 ETH',
+      cost: isSomnia ? '0.01 ETH' : '0.02 NEX',
       energyCost: 20,
-      growthTime: 20, // 20 minutes
+      growthTime: isSomnia ? 120 : 3, // 120 min (2h) for Somnia, 3 min for Nexus/Rise
       yield: '70 RT',
       bundleYield: '85 RT',
       bundleBonus: '+7% growth/yield',
@@ -275,7 +277,14 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
     setIsPending(true);
     setTxSuccess(false);
     try {
-      const rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      let rpcUrl = '';
+      if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
+        rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+        rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+      } else {
+        rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
+      }
       const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
       const wallet = new ethers.Wallet(inGameWallet.privateKey, provider);
       const contract = new ethers.Contract(import.meta.env.VITE_FARMING_ADDRESS, RiseFarmingABI as any, wallet);
@@ -416,7 +425,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
                 </div>
                 {/* Add note about actual on-chain deduction */}
                 <div className="mt-1 text-xs text-blue-600 font-medium italic">Note: Only 1 energy will actually be deducted per planting, regardless of the seed's listed cost.</div>
-                <div className="flex justify-between"><span>Growth Time:</span> <span className="font-bold">{selectedSeed.growthTime} min</span></div>
+                <div className="flex justify-between"><span>Growth Time:</span> <span className="font-bold">{selectedSeed.growthTime} {isSomnia ? 'min' : 'min'}</span></div>
                 <div className="flex justify-between"><span>Expected Yield:</span> <span className={`font-bold ${selectedSeed.bundles > 0 ? 'text-yellow-700' : 'text-emerald-700'}`}>{selectedSeed.bundles > 0 ? selectedSeed.bundleYield : selectedSeed.yield}</span></div>
                 <div className="flex justify-between"><span>Bonus:</span> <span className={`font-bold ${selectedSeed.bundles > 0 ? 'text-yellow-700' : 'text-emerald-700'}`}>{selectedSeed.bundles > 0 ? selectedSeed.bundleBonus : 'None'}</span></div>
                 {selectedSeed.bundles > 0 && (

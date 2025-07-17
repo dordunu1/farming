@@ -37,10 +37,14 @@ export default function Profile({
   const [showSensitive, setShowSensitive] = useState(false);
   const [balance, setBalance] = useState<string | null>(null);
   // Set currency symbol as a constant based on environment
-  const currencySymbol =
-    import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA'
-      ? import.meta.env.VITE_CURRENCY_SYMBOL || 'STT'
-      : import.meta.env.VITE_RISE_CURRENCY_SYMBOL || 'ETH';
+  let currencySymbol = 'ETH';
+  if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
+    currencySymbol = import.meta.env.VITE_CURRENCY_SYMBOL || 'STT';
+  } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+    currencySymbol = import.meta.env.VITE_NEXUS_CURRENCY_SYMBOL || 'NEX';
+  } else {
+    currencySymbol = import.meta.env.VITE_RISE_CURRENCY_SYMBOL || 'ETH';
+  }
   const [showWalletModal, setShowWalletModal] = useState(false);
   const [claiming, setClaiming] = useState(false);
   const [claimSuccess, setClaimSuccess] = useState(false);
@@ -48,7 +52,6 @@ export default function Profile({
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [emailSaved, setEmailSaved] = useState(false);
-  const [emailError, setEmailError] = useState('');
 
   // Fetch on-chain RT balance
   const { data: onChainRiceTokens, refetch: refetchRiceTokens } = useContractRead({
@@ -117,6 +120,8 @@ export default function Profile({
     let rpcUrl = '';
     if (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA') {
       rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
+    } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+      rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
     } else {
       rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
     }
@@ -176,7 +181,7 @@ export default function Profile({
                 </button>
               </div>
               <div className="text-xs text-gray-600 mb-2">{currencySymbol} Balance: {balance !== null ? `${balance} ${currencySymbol}` : '...'}</div>
-              {/* Faucet link for RISE testnet, with gas icon and separated from reveal link */}
+              {/* Faucet link for testnets */}
               {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && (
                 <div className="mb-2 flex items-center gap-2">
                   <a
@@ -188,6 +193,20 @@ export default function Profile({
                   >
                     <Fuel className="w-4 h-4 mr-1 text-emerald-600" />
                     Get Test ETH from Faucet
+                  </a>
+                </div>
+              )}
+              {import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS' && (
+                <div className="mb-2 flex items-center gap-2">
+                  <a
+                    href="https://faucets.alchemy.com/faucets/nexus-testnet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1 text-xs bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 text-emerald-700 font-semibold transition"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Fuel className="w-4 h-4 mr-1 text-emerald-600" />
+                    Get Test NEX from Faucet
                   </a>
                 </div>
               )}

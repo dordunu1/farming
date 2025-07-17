@@ -1,15 +1,27 @@
 const hre = require("hardhat");
 
 async function main() {
-  // Hardcoded deployed contract address for SomniaFarming
-  const contractAddress = "0x260dDaeAF6e47183A9B4778B8C5A793904467D56";
+  let contractName, contractPath, contractAddress;
+  if (hre.network.name === 'somnia-testnet') {
+    contractName = "SomniaFarming";
+    contractPath = "contracts/SomniaFarming.sol:SomniaFarming";
+    contractAddress = "<SOMNIA_CONTRACT_ADDRESS>"; // TODO: Fill after deploy
+  } else if (hre.network.name === 'nexus-testnet') {
+    contractName = "NexusFarming";
+    contractPath = "contracts/NexusFarming.sol:NexusFarming";
+    contractAddress = "0x5de50FF0A6Ac3B9f6F7beE2e72EcadAa3a718705";
+  } else {
+    contractName = "RiseFarming";
+    contractPath = "contracts/RiseFarming.sol:RiseFarming";
+    contractAddress = "<RISE_CONTRACT_ADDRESS>"; // TODO: Fill after deploy
+  }
   // The constructor argument is the deployer's address (used for Ownable)
   await hre.run("verify:verify", {
     address: contractAddress,
     constructorArguments: [],
-    contract: "contracts/SomniaFarming.sol:SomniaFarming"
+    contract: contractPath
   });
-  console.log("Verification submitted for:", contractAddress);
+  console.log(`Verification submitted for: ${contractAddress}`);
 }
 
 main().catch((error) => {
