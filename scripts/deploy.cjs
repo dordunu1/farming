@@ -10,6 +10,8 @@ async function main() {
     contractName = "SomniaFarming";
   } else if (hre.network.name === 'nexus-testnet') {
     contractName = "NexusFarming";
+  } else if (hre.network.name === 'pharos') {
+    contractName = "PharosFarming";
   } else {
     contractName = "RiseFarming";
   }

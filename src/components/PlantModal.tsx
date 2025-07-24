@@ -74,6 +74,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
 
   // Seed meta (should match contract/marketplace)
   const isNexus = import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS';
+  const isPharos = import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS';
   const isSomnia = import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA';
   const seedOptions = [
     {
@@ -83,7 +84,7 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single basic rice seed for everyday farming',
       cost: '50 RT',
       energyCost: 5,
-      growthTime: isSomnia ? 480 : 7, // 480 min (8h) for Somnia, 7 min for Nexus/Rise
+      growthTime: isSomnia ? 480 : 7, // 480 min (8h) for Somnia, 7 min for Nexus/Lisk/Rise
       yield: '15 RT',
       bundleYield: '21 RT',
       bundleBonus: '+1.5% growth/yield',
@@ -94,9 +95,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       name: 'Premium Rice Seed',
       rarity: 'rare',
       description: 'A single premium rice seed with higher yield',
-      cost: isSomnia ? '0.005 ETH' : '0.02 NEX',
+      cost: isSomnia ? '0.005 ETH' : (isPharos ? '0.0006 ETH' : '0.02 NEX'),
       energyCost: 10,
-      growthTime: isSomnia ? 240 : 5, // 240 min (4h) for Somnia, 5 min for Nexus/Rise
+      growthTime: isSomnia ? 240 : 5, // 240 min (4h) for Somnia, 5 min for Nexus/Lisk/Rise
       yield: '50 RT',
       bundleYield: '60 RT',
       bundleBonus: '+3% growth/yield',
@@ -107,9 +108,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       name: 'Hybrid Rice Seed',
       rarity: 'legendary',
       description: 'A single hybrid rice seed with unique properties',
-      cost: isSomnia ? '0.01 ETH' : '0.02 NEX',
+      cost: isSomnia ? '0.01 ETH' : (isPharos ? '0.001 ETH' : '0.02 NEX'),
       energyCost: 20,
-      growthTime: isSomnia ? 120 : 3, // 120 min (2h) for Somnia, 3 min for Nexus/Rise
+      growthTime: isSomnia ? 120 : 3, // 120 min (2h) for Somnia, 3 min for Nexus/Lisk/Rise
       yield: '70 RT',
       bundleYield: '85 RT',
       bundleBonus: '+7% growth/yield',
@@ -282,6 +283,8 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
         rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
       } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
         rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
+        rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
       } else {
         rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL || import.meta.env.VITE_RPC_URL;
       }

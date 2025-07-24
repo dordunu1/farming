@@ -42,6 +42,8 @@ export default function Profile({
     currencySymbol = import.meta.env.VITE_CURRENCY_SYMBOL || 'STT';
   } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
     currencySymbol = import.meta.env.VITE_NEXUS_CURRENCY_SYMBOL || 'NEX';
+  } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
+    currencySymbol = import.meta.env.VITE_PHAROS_CURRENCY_SYMBOL || 'PHRS';
   } else {
     currencySymbol = import.meta.env.VITE_RISE_CURRENCY_SYMBOL || 'ETH';
   }
@@ -122,6 +124,8 @@ export default function Profile({
       rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
     } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
       rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+    } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
+      rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
     } else {
       rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
     }
@@ -180,7 +184,7 @@ export default function Profile({
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-              <div className="text-xs text-gray-600 mb-2">{currencySymbol} Balance: {balance !== null ? `${balance} ${currencySymbol}` : '...'}</div>
+              <div className="text-xs text-gray-600 mb-2">{currencySymbol} Balance: {balance !== null ? `${Number(balance).toFixed(4)} ${currencySymbol}` : '...'}</div>
               {/* Faucet link for testnets */}
               {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && (
                 <div className="mb-2 flex items-center gap-2">
@@ -207,6 +211,20 @@ export default function Profile({
                   >
                     <Fuel className="w-4 h-4 mr-1 text-emerald-600" />
                     Get Test NEX from Faucet
+                  </a>
+                </div>
+              )}
+              {import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS' && (
+                <div className="mb-2 flex items-center gap-2">
+                  <a
+                    href="https://testnet.pharosnetwork.xyz/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1 text-xs bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 text-emerald-700 font-semibold transition"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Fuel className="w-4 h-4 mr-1 text-emerald-600" />
+                    Get Test ETH from Faucet
                   </a>
                 </div>
               )}

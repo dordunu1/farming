@@ -314,7 +314,7 @@ function App() {
               <p className="text-xs text-gray-500">Blockchain Farming</p>
             </div>
           </div>
-          <h2 className="text-xl font-extrabold text-emerald-700 mb-2 mt-2">Welcome to RiceRise</h2>
+          <h2 className="text-xl font-extrabold text-emerald-700 mb-2 mt-2">Welcome to Rice Farming</h2>
           <p className="text-gray-700 text-center mb-6">
             Grow, harvest, and trade digital crops. Compete with friends, earn rewards, and build your dream farm on the blockchain!
           </p>

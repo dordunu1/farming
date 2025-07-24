@@ -154,9 +154,20 @@ exports.verifyPlayer = require('firebase-functions').https.onRequest(async (req,
       });
     }
 
-    // Fetch user document by address (document ID)
+    // Always use checksummed address for Firestore queries
+    let checksummedAddress;
+    try {
+      checksummedAddress = getAddress(address);
+    } catch (e) {
+      return res.status(400).json({ 
+        error: 'Invalid Ethereum address',
+        success: false 
+      });
+    }
+
+    // Fetch user document by checksummed address (document ID)
     const db = admin.firestore();
-    const userDoc = await db.collection('chains').doc('SOMNIA').collection('users').doc(address).get();
+    const userDoc = await db.collection('chains').doc('SOMNIA').collection('users').doc(checksummedAddress).get();
     if (!userDoc.exists) {
       return res.status(404).json({ 
         error: 'User not found',
@@ -165,7 +176,7 @@ exports.verifyPlayer = require('firebase-functions').https.onRequest(async (req,
     }
     const userData = userDoc.data();
     // Use inGameWalletAddress if present, otherwise fallback to address
-    const onChainAddress = userData.inGameWalletAddress || address;
+    const onChainAddress = userData.inGameWalletAddress || checksummedAddress;
 
     // Connect to Somnia testnet
     const provider = new ethers.JsonRpcProvider('https://rpc.ankr.com/somnia_testnet/6e3fd81558cf77b928b06b38e9409b4677b637118114e83364486294d5ff4811');
@@ -180,7 +191,7 @@ exports.verifyPlayer = require('firebase-functions').https.onRequest(async (req,
 
     return res.json({
       success: true,
-      walletAddress: address,
+      walletAddress: checksummedAddress,
       inGameWalletAddress: onChainAddress,
       riceTokensBalance: balance,
       hasEarnedEnoughRT: hasEarnedEnoughRT,
@@ -236,14 +247,23 @@ exports.verifyPlayerByEmail = require('firebase-functions').https.onRequest(asyn
         success: false 
       });
     }
-    const walletAddress = emailDoc.data().walletAddress;
+    let walletAddress = emailDoc.data().walletAddress;
     if (!walletAddress) {
       return res.status(404).json({ 
         error: 'No wallet address found for this email',
         success: false 
       });
     }
-    // Fetch user document by wallet address
+    // Always use checksummed address for Firestore queries
+    try {
+      walletAddress = getAddress(walletAddress);
+    } catch (e) {
+      return res.status(400).json({ 
+        error: 'Invalid Ethereum address for this email',
+        success: false 
+      });
+    }
+    // Fetch user document by checksummed wallet address
     const userDoc = await db.collection('chains').doc('SOMNIA').collection('users').doc(walletAddress).get();
     if (!userDoc.exists) {
       return res.status(404).json({ 

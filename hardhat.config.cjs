@@ -31,12 +31,18 @@ const config = {
       chainId: 3940,
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
+    'pharos': {
+      url: 'https://testnet.dplabs-internal.com',
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      chainId: 688688,
+    },
   },
   etherscan: {
     apiKey: {
       'rise-testnet': 'empty',
       'somnia-testnet': 'empty',
       'nexus-testnet': 'empty', // Placeholder, update if Nexus explorer supports verification
+      'pharos': 'random', // Note: any string, not used
     },
     customChains: [
       {
@@ -61,6 +67,14 @@ const config = {
         urls: {
           apiURL: 'https://testnet3.explorer.nexus.xyz/api', // Placeholder, update if available
           browserURL: 'https://testnet3.explorer.nexus.xyz',
+        },
+      },
+      {
+        network: 'pharos',
+        chainId: 688688,
+        urls: {
+          apiURL: 'https://api.socialscan.io/pharos-testnet/v1/explorer/command_api/contract',
+          browserURL: 'https://testnet.pharosscan.xyz/',
         },
       },
     ],

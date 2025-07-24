@@ -1,13 +1,14 @@
 const https = require('https');
 
 // Your deployed function URL
-const FUNCTION_URL = 'https://us-central1-farming-f4d76.cloudfunctions.net/verifyPlayer';
+const FUNCTION_URL = 'https://verifyplayer-hrksjsqhxq-uc.a.run.app';
 
 // Test wallet addresses (replace with real ones from your game)
 const testAddresses = [
   '0x489439886e58e5bedF4ab8444eaE7516340453f7', // Your contract address (for testing)
   '0x1234567890123456789012345678901234567890', // Invalid address for testing
-  '0x0000000000000000000000000000000000000000'  // Zero address for testing
+  '0x0000000000000000000000000000000000000000',  // Zero address for testing
+  '0x8d1e255ad68cd47334f612f1b73d0cb30fd979b2' // Lowercase test address
 ];
 
 async function testAPI(address) {

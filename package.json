@@ -8,6 +8,7 @@
     "dev:rise": "vite --mode rise",
     "dev:somnia": "vite --mode somnia",
     "dev:nexus": "vite --mode nexus",
+    "dev:pharos": "vite --mode pharos",
     "build": "tsc && vite build",
     "build:rise": "tsc && vite build --mode rise",
     "build:somnia": "tsc && vite build --mode somnia",

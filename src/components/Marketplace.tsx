@@ -14,6 +14,8 @@ import { shredsService, isRiseTestnet } from '../services/shredsService';
 let NATIVE_SYMBOL = import.meta.env.VITE_CURRENCY_SYMBOL || 'ETH';
 if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
   NATIVE_SYMBOL = import.meta.env.VITE_NEXUS_CURRENCY_SYMBOL || 'NEX';
+} else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
+  NATIVE_SYMBOL = import.meta.env.VITE_PHAROS_CURRENCY_SYMBOL || 'PHRS';
 }
 
 const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS as `0x${string}`;
@@ -259,6 +261,8 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
       rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
     } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
       rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+    } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
+      rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
     } else {
       rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
     }
@@ -640,6 +644,8 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
       } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
         rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
+        rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
       } else {
         rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
       }
@@ -877,11 +883,11 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 ethAmount = undefined;
                 supply = '...';
               }
-              if (CHAIN_ID === '50312' || import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
+              if (CHAIN_ID === '50312' || import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS' || import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
                 showUsd = false;
               }
             } else {
-              if (CHAIN_ID === '50312' || import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') { // Somnia
+              if (CHAIN_ID === '50312' || import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS' || import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') { // Somnia
                 if (item.currency === NATIVE_SYMBOL) {
                   ethAmount = '1.000000';
                   showUsd = false;

@@ -59,10 +59,29 @@ const nexusTestnet = {
   testnet: true,
 };
 
+const pharosTestnet = {
+  id: parseInt(import.meta.env.VITE_PHAROS_CHAIN_ID),
+  name: import.meta.env.VITE_PHAROS_NETWORK_NAME,
+  network: 'pharos',
+  nativeCurrency: {
+    name: import.meta.env.VITE_PHAROS_CURRENCY_SYMBOL,
+    symbol: import.meta.env.VITE_PHAROS_CURRENCY_SYMBOL,
+    decimals: 18,
+  },
+  rpcUrls: {
+    default: { http: [import.meta.env.VITE_PHAROS_RPC_URL] },
+    public: { http: [import.meta.env.VITE_PHAROS_RPC_URL] },
+  },
+  blockExplorers: {
+    default: { name: 'Pharos Explorer', url: import.meta.env.VITE_PHAROS_BLOCK_EXPLORER_URL },
+  },
+  testnet: true,
+};
+
 export const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID;
 if (!projectId) throw new Error('Project ID is not defined');
 
-export const networks = [riseTestnet, somniaTestnet, nexusTestnet];
+export const networks = [riseTestnet, somniaTestnet, nexusTestnet, pharosTestnet];
 
 export const wagmiAdapter = new WagmiAdapter({
   storage: createStorage({ storage: cookieStorage }),

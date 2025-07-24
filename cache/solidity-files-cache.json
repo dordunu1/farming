@@ -307,6 +307,47 @@
       "artifacts": [
         "NexusFarming"
       ]
+    },
+    "E:\\farming\\contracts\\PharosFarming.sol": {
+      "lastModificationDate": 1753324572157,
+      "contentHash": "ea6ae00b6f405ccf34e6e197264210f8",
+      "sourceName": "contracts/PharosFarming.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/Pausable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "PharosFarming"
+      ]
     }
   }
 }

@@ -10,6 +10,10 @@ async function main() {
     contractName = "NexusFarming";
     contractPath = "contracts/NexusFarming.sol:NexusFarming";
     contractAddress = "0x5de50FF0A6Ac3B9f6F7beE2e72EcadAa3a718705";
+  } else if (hre.network.name === 'pharos') {
+    contractName = "PharosFarming";
+    contractPath = "contracts/PharosFarming.sol:PharosFarming";
+    contractAddress = "<PHAROS_CONTRACT_ADDRESS>"; // TODO: Fill after deploy
   } else {
     contractName = "RiseFarming";
     contractPath = "contracts/RiseFarming.sol:RiseFarming";
