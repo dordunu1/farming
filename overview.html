@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RiceRise Overview - Blockchain Rice Farming Game</title>
+    <meta name="description" content="RiceRise is a revolutionary blockchain-based rice farming simulation game where players plant, water, and harvest virtual rice crops to earn real Rice Tokens (RT).">
+    <link rel="icon" href="/rice.ico" type="image/x-icon">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        emerald: {
+                            50: '#ecfdf5',
+                            100: '#d1fae5',
+                            500: '#10b981',
+                            600: '#059669',
+                            700: '#047857'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 50%, #fef3c7 100%);
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen">
+    <!-- Header -->
+    <header class="bg-white/80 backdrop-blur-sm border-b border-emerald-100 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="w-10 h-10 bg-gradient-to-br from-emerald-500 via-green-500 to-yellow-500 rounded-xl flex items-center justify-center shadow-lg">
+                    <div class="w-5 h-5 bg-white rounded-md"></div>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-gradient">RiceRise</h1>
+                    <p class="text-xs text-gray-500">Blockchain Farming</p>
+                </div>
+            </div>
+            <a href="/" class="bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 transition">
+                Play Now
+            </a>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="py-20 px-4">
+        <div class="max-w-7xl mx-auto text-center">
+            <h1 class="text-5xl md:text-7xl font-bold text-gradient mb-6">
+                RiceRise
+            </h1>
+            <p class="text-xl md:text-2xl text-gray-700 mb-8 max-w-3xl mx-auto">
+                The revolutionary blockchain-based rice farming simulation game that combines the joy of farming with the power of decentralized finance.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="/" class="bg-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-emerald-700 transition shadow-lg">
+                    Start Farming
+                </a>
+                <a href="#features" class="border-2 border-emerald-600 text-emerald-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-emerald-50 transition">
+                    Learn More
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Key Features -->
+    <section id="features" class="py-20 px-4 bg-white/50">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-bold text-center text-gray-800 mb-16">Key Features</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                <!-- 100% On-Chain -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">100% On-Chain Gameplay</h3>
+                    <p class="text-gray-600">Every farming action is recorded and enforced by smart contracts. No off-chain manipulation possible - true fairness for all players.</p>
+                </div>
+
+                <!-- Play-to-Earn -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Play-to-Earn Mechanics</h3>
+                    <p class="text-gray-600">Earn Rice Tokens (RT) through harvesting crops, completing quests, and daily rewards. Convert to ERC-20 tokens for real value.</p>
+                </div>
+
+                <!-- Seamless UX -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Seamless Experience</h3>
+                    <p class="text-gray-600">In-game wallet system eliminates annoying signing pop-ups. Enjoy instant transactions with Shreds integration on Rise testnet.</p>
+                </div>
+
+                <!-- Deep Strategy -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Deep Strategy</h3>
+                    <p class="text-gray-600">Manage 16-plot farm with energy system, tools, and upgrades. Strategic planning required for optimal yields and profits.</p>
+                </div>
+
+                <!-- Marketplace -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Decentralized Marketplace</h3>
+                    <p class="text-gray-600">Purchase seeds, tools, and bundles with ETH or RT. All transactions are transparent and supply-limited for value creation.</p>
+                </div>
+
+                <!-- Community -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Community Driven</h3>
+                    <p class="text-gray-600">Global leaderboards, daily quests, achievements, and player governance. Join a thriving community of blockchain farmers.</p>
+                </div>
+
+                <!-- Global Farm -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Global Farm</h3>
+                    <p class="text-gray-600">Interact with the community farm, see other players' progress, and participate in collaborative farming activities.</p>
+                </div>
+
+                <!-- Leaderboard -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Leaderboard</h3>
+                    <p class="text-gray-600">Compete with farmers worldwide, track your ranking, and climb the global leaderboards for recognition and rewards.</p>
+                </div>
+
+                <!-- Inventory -->
+                <div class="bg-white rounded-2xl p-8 shadow-lg card-hover">
+                    <div class="w-16 h-16 bg-emerald-100 rounded-xl flex items-center justify-center mb-6">
+                        <svg class="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Inventory System</h3>
+                    <p class="text-gray-600">Manage your collected items, tools, and resources. Track your progress and organize your farming equipment efficiently.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Game Mechanics -->
+    <section class="py-20 px-4">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-bold text-center text-gray-800 mb-16">Game Mechanics</h2>
+            <div class="grid lg:grid-cols-2 gap-12 items-center">
+                <div>
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6">Farming Cycle</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold">1</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Plant Seeds</h4>
+                                <p class="text-gray-600">Choose from Basic, Premium, or Hybrid rice varieties</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold">2</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Water Crops</h4>
+                                <p class="text-gray-600">Maintain optimal growth conditions</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold">3</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Harvest & Earn</h4>
+                                <p class="text-gray-600">Collect RT rewards from mature crops</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold">4</div>
+                            <div>
+                                <h4 class="font-semibold text-gray-800">Upgrade & Expand</h4>
+                                <p class="text-gray-600">Use earnings to improve your farm</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-2xl p-8 shadow-lg">
+                    <h3 class="text-2xl font-bold text-gray-800 mb-6">Crop Yields</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center p-4 bg-emerald-50 rounded-lg">
+                            <span class="font-semibold">Basic Rice</span>
+                            <span class="text-emerald-600 font-bold">15 RT</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-emerald-50 rounded-lg">
+                            <span class="font-semibold">Premium Rice</span>
+                            <span class="text-emerald-600 font-bold">50 RT</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-emerald-50 rounded-lg">
+                            <span class="font-semibold">Hybrid Rice</span>
+                            <span class="text-emerald-600 font-bold">85 RT</span>
+                        </div>
+                        <div class="flex justify-between items-center p-4 bg-yellow-50 rounded-lg">
+                            <span class="font-semibold">Golden Harvester Bonus</span>
+                            <span class="text-yellow-600 font-bold">+20%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Tokenomics -->
+    <section class="py-20 px-4 bg-white/50">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-bold text-center text-gray-800 mb-16">Tokenomics</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="bg-white rounded-2xl p-6 text-center shadow-lg">
+                    <div class="text-3xl font-bold text-emerald-600 mb-2">1B</div>
+                    <div class="text-gray-600">Total Supply</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-lg">
+                    <div class="text-3xl font-bold text-emerald-600 mb-2">500 RT</div>
+                    <div class="text-gray-600">Minimum Claim</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-lg">
+                    <div class="text-3xl font-bold text-emerald-600 mb-2">1-7 RT</div>
+                    <div class="text-gray-600">Daily Rewards</div>
+                </div>
+                <div class="bg-white rounded-2xl p-6 text-center shadow-lg">
+                    <div class="text-3xl font-bold text-emerald-600 mb-2">ERC-20</div>
+                    <div class="text-gray-600">Token Standard</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Technical Innovation -->
+    <section class="py-20 px-4">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-4xl font-bold text-center text-gray-800 mb-16">Technical Innovation</h2>
+            <div class="grid lg:grid-cols-3 gap-8">
+                <div class="bg-white rounded-2xl p-8 shadow-lg">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Smart Contract Architecture</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>• Comprehensive on-chain enforcement</li>
+                        <li>• Anti-cheat protection</li>
+                        <li>• Transparent supply management</li>
+                        <li>• Real-time event emission</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl p-8 shadow-lg">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Shreds Integration</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>• Fast transaction confirmations</li>
+                        <li>• Real-time contract monitoring</li>
+                        <li>• Graceful fallback support</li>
+                        <li>• Optimized for Rise testnet</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-2xl p-8 shadow-lg">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Wallet System</h3>
+                    <ul class="space-y-2 text-gray-600">
+                        <li>• Deterministic generation</li>
+                        <li>• Persistent across sessions</li>
+                        <li>• Encrypted storage</li>
+                        <li>• Secure recovery</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Getting Started -->
+    <section class="py-20 px-4 bg-white/50">
+        <div class="max-w-7xl mx-auto text-center">
+            <h2 class="text-4xl font-bold text-gray-800 mb-16">Getting Started</h2>
+            <div class="grid md:grid-cols-3 gap-8 mb-12">
+                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                    <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">1</span>
+                    </div>
+                    <h3 class="font-bold text-gray-800 mb-2">Connect Wallet</h3>
+                    <p class="text-gray-600">Link your MetaMask or WalletConnect</p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                    <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">2</span>
+                    </div>
+                    <h3 class="font-bold text-gray-800 mb-2">Claim Energy</h3>
+                    <p class="text-gray-600">Get your free starting energy</p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 shadow-lg">
+                    <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl">3</span>
+                    </div>
+                    <h3 class="font-bold text-gray-800 mb-2">Start Farming</h3>
+                    <p class="text-gray-600">Plant seeds and begin your journey</p>
+                </div>
+            </div>
+            <a href="/" class="bg-emerald-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-emerald-700 transition shadow-lg">
+                Start Your Farming Journey
+            </a>
+        </div>
+    </section>
+</body>
+</html> 
