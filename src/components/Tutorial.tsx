@@ -284,10 +284,18 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
           <div className="bg-blue-50 rounded-xl p-4 text-xs text-blue-700 text-center">
             You only spend 1 energy per action, but planting requires you to have a minimum energy depending on the seed type (5 for Basic, 10 for Premium, 20 for Hybrid).
           </div>
-          <div className="bg-blue-50 rounded-xl p-4">
-            <p className="text-blue-700 text-sm">
-              ⚡ <strong>Energy Tips:</strong> Energy regenerates 1 point per minute. Plan your actions carefully!
-            </p>
+          <div className="bg-emerald-50 rounded-xl p-4">
+            <h5 className="font-semibold text-gray-800 mb-2">🎯 Strategic Progression:</h5>
+            <div className="text-sm text-gray-700 space-y-2">
+              <p><strong>Start:</strong> Use your 10 free energy to plant Basic Seeds</p>
+              <p><strong>Earn:</strong> Harvest Basic Seeds to earn RT tokens</p>
+              <p><strong>Reinvest:</strong> Use RT to buy Energy Boosters</p>
+              <p><strong>Progress:</strong> Plant Premium/Hybrid Seeds for faster growth & higher yields</p>
+              <p><strong>Scale:</strong> Reinvest RT earnings to unlock better seeds and maximize profits</p>
+            </div>
+            <div className="mt-3 text-xs text-emerald-700 font-medium">
+              💡 <strong>Pro Tip:</strong> You can reach 200 RT in under an hour by following this progression!
+            </div>
           </div>
         </div>
       )
