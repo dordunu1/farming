@@ -501,6 +501,15 @@ function HomeScreen({
         setIsClaimPending(false);
         setIsClaimSuccess(true);
         setShowEnergyClaimToast(true);
+        // --- Heal inGameWalletAddress in Firestore if missing ---
+        if (address && inGameAddress) {
+          const { syncUserOnChainToFirestore, getUserData } = await import('../lib/firebaseUser');
+          getUserData(address).then(user => {
+            if (user && (!user.inGameWalletAddress || user.inGameWalletAddress === '')) {
+              syncUserOnChainToFirestore(address, { inGameWalletAddress: inGameAddress });
+            }
+          });
+        }
       } else {
         throw new Error('Transaction failed: No result received');
       }
