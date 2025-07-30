@@ -484,9 +484,10 @@ function App() {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setShowTutorial(true)}
-                className="p-2 text-gray-600 hover:text-emerald-600 transition-colors"
+                className="flex items-center space-x-1 p-2 text-gray-600 hover:text-emerald-600 transition-colors"
               >
                 <BookOpen className="w-5 h-5" />
+                <span className="text-xs">Guide</span>
               </motion.button>
             </div>
           </div>
