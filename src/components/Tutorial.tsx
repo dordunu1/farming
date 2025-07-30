@@ -117,7 +117,7 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
             <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
               <div className="w-6 h-6 bg-green-400 rounded-full mx-auto mb-2"></div>
               <div className="text-xs font-medium">Basic Rice</div>
-              <div className="text-xs text-gray-500">8h growth</div>
+              <div className="text-xs text-gray-500">60 min growth</div>
               <div className="text-xs text-emerald-700">15 RT (Single)</div>
               <div className="text-xs text-yellow-700">21 RT (Bundle, 4.8h)</div>
               <div className="text-xs text-blue-500 mt-1">Min. Energy: 5</div>
@@ -125,7 +125,7 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
             <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
               <div className="w-6 h-6 bg-yellow-400 rounded-full mx-auto mb-2"></div>
               <div className="text-xs font-medium">Premium Rice</div>
-              <div className="text-xs text-gray-500">6h growth</div>
+              <div className="text-xs text-gray-500">40 min growth</div>
               <div className="text-xs text-emerald-700">50 RT (Single)</div>
               <div className="text-xs text-yellow-700">60 RT (Bundle, 4.8h)</div>
               <div className="text-xs text-blue-500 mt-1">Min. Energy: 10</div>
@@ -133,7 +133,7 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
             <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
               <div className="w-6 h-6 bg-purple-400 rounded-full mx-auto mb-2"></div>
               <div className="text-xs font-medium">Hybrid Rice</div>
-              <div className="text-xs text-gray-500">4h growth</div>
+              <div className="text-xs text-gray-500">20 min growth</div>
               <div className="text-xs text-emerald-700">70 RT (Single)</div>
               <div className="text-xs text-yellow-700">84 RT (Bundle, 3.14h)</div>
               <div className="text-xs text-blue-500 mt-1">Min. Energy: 20</div>
