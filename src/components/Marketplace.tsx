@@ -69,7 +69,7 @@ const marketItems: MarketItem[] = [
     level: 1,
     benefits: ['Reliable growth', 'Low cost'],
     riseReward: 15,
-    details: `Growth time: 60 min\nYield: 15 RT\nNo bundle bonus.`,
+    details: `Growth time: ${import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? '60 min' : '7 min'}\nYield: 15 RT\nNo bundle bonus.`,
     supply: 0
   },
   {
@@ -84,7 +84,7 @@ const marketItems: MarketItem[] = [
     level: 1,
     benefits: ['+40% yield and growth', 'Each bundle contains 5 Basic Rice Seeds'],
     riseReward: 21,
-    details: `Growth time: 36 min (reduced by 40%)\nYield: 21 RT (increased by 40%)`,
+    details: `Growth time: ${import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? '36 min' : '4.2 min'} (reduced by 40%)\nYield: 21 RT (increased by 40%)`,
     supply: 10000
   },
   {
@@ -99,7 +99,7 @@ const marketItems: MarketItem[] = [
     level: 2,
     benefits: ['Faster growth', 'Higher yield'],
     riseReward: 50,
-    details: `Growth time: 40 min\nYield: 50 RT\nNo bundle bonus.`,
+    details: `Growth time: ${import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? '40 min' : '6 min'}\nYield: 50 RT\nNo bundle bonus.`,
     supply: 0
   },
   {
@@ -114,7 +114,7 @@ const marketItems: MarketItem[] = [
     level: 2,
     benefits: ['+20% yield and growth', 'Each bundle contains 2 Premium Rice Seeds'],
     riseReward: 60,
-    details: `Growth time: 32 min (reduced by 20%)\nYield: 60 RT (increased by 20%)`,
+    details: `Growth time: ${import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? '32 min' : '4.8 min'} (reduced by 20%)\nYield: 60 RT (increased by 20%)`,
     supply: 10000
   },
   {
@@ -129,7 +129,7 @@ const marketItems: MarketItem[] = [
     level: 3,
     benefits: ['Unique properties', 'Legendary yield'],
     riseReward: 70,
-    details: `Growth time: 20 min\nYield: 70 RT\nNo bundle bonus.`,
+    details: `Growth time: ${import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? '20 min' : '5 min'}\nYield: 70 RT\nNo bundle bonus.`,
     supply: 0
   },
   {
@@ -144,7 +144,7 @@ const marketItems: MarketItem[] = [
     level: 3,
     benefits: ['+21.43% yield and growth', 'Each bundle contains 2 Hybrid Rice Seeds'],
     riseReward: 84,
-    details: `Growth time: 15.7 min (reduced by 21.43%)\nYield: 84 RT (increased by 21.43%)`,
+    details: `Growth time: ${import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? '15.7 min' : '3.9 min'} (reduced by 21.43%)\nYield: 84 RT (increased by 21.43%)`,
     supply: 10000
   },
   {

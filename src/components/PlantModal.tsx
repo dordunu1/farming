@@ -84,9 +84,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single basic rice seed for everyday farming',
       cost: '50 RT',
       energyCost: 5,
-      growthTime: isSomnia ? 60 : 7, // 60 min for Somnia, 7 min for others
+      growthTime: isSomnia ? 60 : 7, // 60 min for Somnia, 7 min for Rise/Nexus/Pharos
       yield: '15 RT',
-      bundleYield: '21 RT (Bundle, 36 min)',
+      bundleYield: isSomnia ? '21 RT (Bundle, 36 min)' : '21 RT (Bundle, 4.2 min)',
       bundleBonus: '+1.5% growth/yield',
       icon: <span className="text-xl">🌾</span>,
     },
@@ -97,9 +97,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single premium rice seed with higher yield',
       cost: isSomnia ? '0.005 ETH' : (isPharos ? '0.0006 ETH' : '0.02 NEX'),
       energyCost: 10,
-      growthTime: isSomnia ? 40 : 5, // 40 min for Somnia, 5 min for others
+      growthTime: isSomnia ? 40 : 6, // 40 min for Somnia, 6 min for Rise/Nexus/Pharos
       yield: '50 RT',
-      bundleYield: '60 RT (Bundle, 32 min)',
+      bundleYield: isSomnia ? '60 RT (Bundle, 32 min)' : '60 RT (Bundle, 4.8 min)',
       bundleBonus: '+3% growth/yield',
       icon: <span className="text-xl">🌾</span>,
     },
@@ -110,9 +110,9 @@ function PlantModal({ isOpen, onClose, plotId, energy, setEnergy, plots, setPlot
       description: 'A single hybrid rice seed with unique properties',
       cost: isSomnia ? '0.01 ETH' : (isPharos ? '0.001 ETH' : '0.02 NEX'),
       energyCost: 20,
-      growthTime: isSomnia ? 20 : 3, // 20 min for Somnia, 3 min for others
+      growthTime: isSomnia ? 20 : 5, // 20 min for Somnia, 5 min for Rise/Nexus/Pharos
       yield: '70 RT',
-      bundleYield: '85 RT (Bundle, 15.7 min)',
+      bundleYield: isSomnia ? '85 RT (Bundle, 15.7 min)' : '85 RT (Bundle, 3.9 min)',
       bundleBonus: '+7% growth/yield',
       icon: <span className="text-xl">🌾</span>,
     },
