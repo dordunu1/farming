@@ -119,7 +119,7 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
               <div className="text-xs font-medium">Basic Rice</div>
               <div className="text-xs text-gray-500">60 min growth</div>
               <div className="text-xs text-emerald-700">15 RT (Single)</div>
-              <div className="text-xs text-yellow-700">21 RT (Bundle, 4.8h)</div>
+              <div className="text-xs text-yellow-700">21 RT (Bundle, 36 min)</div>
               <div className="text-xs text-blue-500 mt-1">Min. Energy: 5</div>
             </div>
             <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
@@ -127,7 +127,7 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
               <div className="text-xs font-medium">Premium Rice</div>
               <div className="text-xs text-gray-500">40 min growth</div>
               <div className="text-xs text-emerald-700">50 RT (Single)</div>
-              <div className="text-xs text-yellow-700">60 RT (Bundle, 4.8h)</div>
+              <div className="text-xs text-yellow-700">60 RT (Bundle, 32 min)</div>
               <div className="text-xs text-blue-500 mt-1">Min. Energy: 10</div>
             </div>
             <div className="bg-white rounded-lg p-3 border border-gray-200 text-center">
@@ -135,7 +135,7 @@ function Tutorial({ isOpen, onClose }: TutorialProps) {
               <div className="text-xs font-medium">Hybrid Rice</div>
               <div className="text-xs text-gray-500">20 min growth</div>
               <div className="text-xs text-emerald-700">70 RT (Single)</div>
-              <div className="text-xs text-yellow-700">84 RT (Bundle, 3.14h)</div>
+              <div className="text-xs text-yellow-700">84 RT (Bundle, 15.7 min)</div>
               <div className="text-xs text-blue-500 mt-1">Min. Energy: 20</div>
             </div>
           </div>
