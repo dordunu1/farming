@@ -41,13 +41,7 @@ exports.cronUpdatePlots = onSchedule({ schedule: 'every 1 minutes' }, async (eve
       continue;
     }
     try {
-      // 1. Update plots to ready
-      await contract.updatePlotsForUser(address);
-      // 2. Wait 5 seconds
-      await new Promise(res => setTimeout(res, 5000));
-      // 3. Auto-water plots
-      await contract.autoWaterPlotsForUser(address);
-      // 4. Read on-chain plots
+      // 1. Read on-chain plots
       const plotIds = Array.from({ length: 16 }, (_, i) => i);
       const plots = await contract.getUserPlots(address, plotIds);
       const sanitizedPlots = plots.map((plot, i) => {

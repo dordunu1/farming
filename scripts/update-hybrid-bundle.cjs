@@ -1,13 +1,13 @@
-require('dotenv').config({ path: '.env.rise' });
+require('dotenv').config({ path: '.env.somnia' });
 const { ethers } = require('ethers');
 const abi = require('../functions/RiseFarmingABI.json').abi;
 
 const CONTRACT_ADDRESS = process.env.VITE_FARMING_ADDRESS;
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
-const RPC_URL = process.env.RISE_RPC_URL || process.env.VITE_RISE_RPC_URL;
+const RPC_URL = process.env.SOMNIA_RPC_URL || process.env.VITE_SOMNIA_RPC_URL;
 
 const BUNDLE_IDS = [13, 14, 15]; // Basic, Premium, Hybrid
-const NEW_SUPPLY = 20000;
+const NEW_SUPPLY = 5000; // Updated to 5000 for Somnia bundle seeds
 const GOLDEN_HARVESTER_SINGLE_ID = 17;
 const GOLDEN_HARVESTER_BUNDLE_ID = 18;
 

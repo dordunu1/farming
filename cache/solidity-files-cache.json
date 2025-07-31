@@ -268,8 +268,8 @@
       ]
     },
     "E:\\farming\\contracts\\NexusFarming.sol": {
-      "lastModificationDate": 1752788990853,
-      "contentHash": "b4e253843a807c4848ee1656f4bf1105",
+      "lastModificationDate": 1753943551014,
+      "contentHash": "d1413a6909b4e1f06ed296e89b013d4c",
       "sourceName": "contracts/NexusFarming.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -309,8 +309,8 @@
       ]
     },
     "E:\\farming\\contracts\\PharosFarming.sol": {
-      "lastModificationDate": 1753324572157,
-      "contentHash": "ea6ae00b6f405ccf34e6e197264210f8",
+      "lastModificationDate": 1753327684174,
+      "contentHash": "15adffcb67ad00c6979adda74a34b019",
       "sourceName": "contracts/PharosFarming.sol",
       "solcConfig": {
         "version": "0.8.24",

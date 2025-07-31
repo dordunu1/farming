@@ -9,7 +9,7 @@ async function main() {
   } else if (hre.network.name === 'nexus-testnet') {
     contractName = "NexusFarming";
     contractPath = "contracts/NexusFarming.sol:NexusFarming";
-    contractAddress = "0x5de50FF0A6Ac3B9f6F7beE2e72EcadAa3a718705";
+    contractAddress = "0x2Ff8bD293D489Aed53A731702b963d7C244Dd88B";
   } else if (hre.network.name === 'pharos') {
     contractName = "PharosFarming";
     contractPath = "contracts/PharosFarming.sol:PharosFarming";

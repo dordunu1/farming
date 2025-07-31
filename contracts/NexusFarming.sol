@@ -152,8 +152,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 10000,
-            supply: 10000
+            maxSupply: 20000,
+            supply: 20000
         });
         // Update Basic Rice Seed (Bundle)
         bundles[13] = Bundle({
@@ -164,8 +164,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 NEX
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 10000,
+            supply: 10000
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
@@ -184,8 +184,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 4000,
-            supply: 4000
+            maxSupply: 20000,
+            supply: 20000
         });
         // Update Premium Rice Seed (Bundle)
         bundles[14] = Bundle({
@@ -196,8 +196,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 NEX
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 10000,
+            supply: 10000
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
@@ -216,8 +216,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 2000,
-            supply: 2000
+            maxSupply: 20000,
+            supply: 20000
         });
         // Update Hybrid Rice Seed (Bundle)
         bundles[15] = Bundle({
@@ -228,8 +228,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 NEX
             paymentToken: address(0),
             active: true,
-            maxSupply: 500,
-            supply: 500
+            maxSupply: 10000,
+            supply: 10000
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;
@@ -249,8 +249,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 3750,
-            supply: 3750
+            maxSupply: 20000,
+            supply: 20000
         });
         // Golden Harvester (Bundle)
         bundles[16] = Bundle({
@@ -261,8 +261,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 NEX
             paymentToken: address(0),
             active: true,
-            maxSupply: 1875,
-            supply: 1875
+            maxSupply: 10000,
+            supply: 10000
         });
         bundles[16].itemIds[0] = GOLDEN_HARVESTER_SINGLE_ID;
         bundles[16].itemAmounts[0] = 2;
@@ -271,7 +271,7 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             id: FERTILIZER_SPREADER_ID,
             name: "Fertilizer Spreader",
             itemType: 1, // tool
-            priceETH: 20000000000000000, // 0.02 NEX
+            priceETH: 0, // RT-priced item (50 RT)
             paymentToken: address(0),
             baseReward: 0,
             baseGrowthTime: 0,
@@ -293,8 +293,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 10000,
+            supply: 10000
         });
         // Add Auto-Watering System
         items[AUTO_WATERING_SYSTEM_ID] = Item({
@@ -337,8 +337,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 NEX
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 10000,
+            supply: 10000
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
@@ -352,8 +352,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 NEX
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 10000,
+            supply: 10000
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
@@ -367,8 +367,8 @@ contract NexusFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 NEX
             paymentToken: address(0),
             active: true,
-            maxSupply: 500,
-            supply: 500
+            maxSupply: 10000,
+            supply: 10000
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;
