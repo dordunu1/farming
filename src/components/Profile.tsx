@@ -44,6 +44,8 @@ export default function Profile({
     currencySymbol = import.meta.env.VITE_NEXUS_CURRENCY_SYMBOL || 'NEX';
   } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
     currencySymbol = import.meta.env.VITE_PHAROS_CURRENCY_SYMBOL || 'PHRS';
+  } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+    currencySymbol = import.meta.env.VITE_FLUENT_CURRENCY_SYMBOL || 'ETH';
   } else {
     currencySymbol = import.meta.env.VITE_RISE_CURRENCY_SYMBOL || 'ETH';
   }
@@ -126,6 +128,8 @@ export default function Profile({
       rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
     } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
       rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
+    } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+      rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
     } else {
       rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
     }
@@ -218,6 +222,20 @@ export default function Profile({
                 <div className="mb-2 flex items-center gap-2">
                   <a
                     href="https://testnet.pharosnetwork.xyz/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1 text-xs bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 text-emerald-700 font-semibold transition"
+                    style={{ textDecoration: 'none' }}
+                  >
+                    <Fuel className="w-4 h-4 mr-1 text-emerald-600" />
+                    Get Test ETH from Faucet
+                  </a>
+                </div>
+              )}
+              {import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT' && (
+                <div className="mb-2 flex items-center gap-2">
+                  <a
+                    href="https://testnet.gblend.xyz/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center px-3 py-1 text-xs bg-emerald-50 border border-emerald-200 rounded hover:bg-emerald-100 text-emerald-700 font-semibold transition"

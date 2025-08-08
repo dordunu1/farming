@@ -1,10 +1,10 @@
 {
   "_format": "hh-sol-cache-2",
   "files": {
-    "E:\\farming\\contracts\\RiseFarming.sol": {
-      "lastModificationDate": 1750238382219,
-      "contentHash": "ec9ee37dca3803067c8baaae61d03b6e",
-      "sourceName": "contracts/RiseFarming.sol",
+    "E:\\farming\\contracts\\FluentFarming.sol": {
+      "lastModificationDate": 1754662060928,
+      "contentHash": "c94c547adc6ced4572c83178e582d164",
+      "sourceName": "contracts/FluentFarming.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -39,7 +39,7 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "RiseFarming"
+        "FluentFarming"
       ]
     },
     "E:\\farming\\node_modules\\@openzeppelin\\contracts\\access\\Ownable.sol": {
@@ -227,7 +227,7 @@
       ]
     },
     "E:\\farming\\contracts\\SomniaFarming.sol": {
-      "lastModificationDate": 1752002310224,
+      "lastModificationDate": 1752005174859,
       "contentHash": "47ec16166d1098729b26c988bdeccb86",
       "sourceName": "contracts/SomniaFarming.sol",
       "solcConfig": {
@@ -267,10 +267,10 @@
         "SomniaFarming"
       ]
     },
-    "E:\\farming\\contracts\\NexusFarming.sol": {
-      "lastModificationDate": 1753943551014,
-      "contentHash": "d1413a6909b4e1f06ed296e89b013d4c",
-      "sourceName": "contracts/NexusFarming.sol",
+    "E:\\farming\\contracts\\RiseFarming.sol": {
+      "lastModificationDate": 1750238382219,
+      "contentHash": "ec9ee37dca3803067c8baaae61d03b6e",
+      "sourceName": "contracts/RiseFarming.sol",
       "solcConfig": {
         "version": "0.8.24",
         "settings": {
@@ -305,7 +305,7 @@
         "^0.8.24"
       ],
       "artifacts": [
-        "NexusFarming"
+        "RiseFarming"
       ]
     },
     "E:\\farming\\contracts\\PharosFarming.sol": {
@@ -347,6 +347,47 @@
       ],
       "artifacts": [
         "PharosFarming"
+      ]
+    },
+    "E:\\farming\\contracts\\NexusFarming.sol": {
+      "lastModificationDate": 1753943551014,
+      "contentHash": "d1413a6909b4e1f06ed296e89b013d4c",
+      "sourceName": "contracts/NexusFarming.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "@openzeppelin/contracts/access/Ownable.sol",
+        "@openzeppelin/contracts/utils/Pausable.sol",
+        "@openzeppelin/contracts/utils/ReentrancyGuard.sol",
+        "@openzeppelin/contracts/token/ERC20/IERC20.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "NexusFarming"
       ]
     }
   }

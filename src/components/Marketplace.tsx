@@ -16,6 +16,8 @@ if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
   NATIVE_SYMBOL = import.meta.env.VITE_NEXUS_CURRENCY_SYMBOL || 'NEX';
 } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
   NATIVE_SYMBOL = import.meta.env.VITE_PHAROS_CURRENCY_SYMBOL || 'PHRS';
+} else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+  NATIVE_SYMBOL = import.meta.env.VITE_FLUENT_CURRENCY_SYMBOL || 'ETH';
 }
 
 const FARMING_ADDRESS = import.meta.env.VITE_FARMING_ADDRESS as `0x${string}`;
@@ -263,6 +265,8 @@ function BuyModal({ open, item, onClose, onConfirm, pending, success, bundleBrea
       rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
     } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
       rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
+    } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+      rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
     } else {
       rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
     }
@@ -646,6 +650,8 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
         rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
       } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
         rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+        rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
       } else {
         rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
       }

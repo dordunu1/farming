@@ -36,6 +36,11 @@ const config = {
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 688688,
     },
+    'fluent-testnet': {
+      url: process.env.FLUENT_RPC_URL || 'https://rpc.testnet.fluent.xyz',
+      chainId: 20994,
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: {
@@ -43,6 +48,7 @@ const config = {
       'somnia-testnet': 'empty',
       'nexus-testnet': 'empty', // Placeholder, update if Nexus explorer supports verification
       'pharos': 'random', // Note: any string, not used
+      'fluent-testnet': 'empty',
     },
     customChains: [
       {
@@ -75,6 +81,14 @@ const config = {
         urls: {
           apiURL: 'https://api.socialscan.io/pharos-testnet/v1/explorer/command_api/contract',
           browserURL: 'https://testnet.pharosscan.xyz/',
+        },
+      },
+      {
+        network: 'fluent-testnet',
+        chainId: 20994,
+        urls: {
+          apiURL: 'https://testnet.fluentscan.xyz/api',
+          browserURL: 'https://testnet.fluentscan.xyz',
         },
       },
     ],

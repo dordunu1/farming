@@ -9,9 +9,13 @@
     "dev:somnia": "vite --mode somnia",
     "dev:nexus": "vite --mode nexus",
     "dev:pharos": "vite --mode pharos",
+    "dev:fluent": "vite --mode fluent",
     "build": "tsc && vite build",
     "build:rise": "tsc && vite build --mode rise",
     "build:somnia": "tsc && vite build --mode somnia",
+    "build:nexus": "tsc && vite build --mode nexus",
+    "build:pharos": "tsc && vite build --mode pharos",
+    "build:fluent": "tsc && vite build --mode fluent",
     "deploy:somnia": "npx hardhat run scripts/deploy.cjs --network somnia-testnet",
     "lint": "eslint .",
     "preview": "vite preview"

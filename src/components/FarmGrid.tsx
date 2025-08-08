@@ -137,8 +137,8 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
         rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
       } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
         rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
-      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'LISK') {
-        rpcUrl = import.meta.env.VITE_LISK_RPC_URL || import.meta.env.LISK_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+        rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
       } else {
         rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
       }
@@ -420,8 +420,8 @@ function FarmGrid({ isWalletConnected, energy, setEnergy, riceTokens, setRiceTok
         rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
       } else if (import.meta.env.VITE_CURRENT_CHAIN === 'NEXUS') {
         rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
-      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'LISK') {
-        rpcUrl = import.meta.env.VITE_LISK_RPC_URL || import.meta.env.LISK_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+        rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
       } else {
         rpcUrl = import.meta.env.VITE_RISE_RPC_URL || import.meta.env.RISE_RPC_URL;
       }

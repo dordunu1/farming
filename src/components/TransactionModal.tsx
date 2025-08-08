@@ -184,6 +184,8 @@ function TransactionModal({
           rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
         } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
           rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
+        } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+          rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
         } else {
           rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
         }
@@ -275,6 +277,8 @@ function TransactionModal({
               rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
             } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
               rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
+            } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+              rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
             } else {
               rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
             }
@@ -355,6 +359,8 @@ function TransactionModal({
         rpcUrl = import.meta.env.VITE_NEXUS_RPC_URL || import.meta.env.NEXUS_RPC_URL;
       } else if (import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') {
         rpcUrl = import.meta.env.VITE_PHAROS_RPC_URL || import.meta.env.PHAROS_RPC_URL;
+      } else if (import.meta.env.VITE_CURRENT_CHAIN === 'FLUENT') {
+        rpcUrl = import.meta.env.VITE_FLUENT_RPC_URL || import.meta.env.FLUENT_RPC_URL;
       } else {
         rpcUrl = import.meta.env.VITE_RPC_URL || import.meta.env.SOMNIA_RPC_URL;
       }
