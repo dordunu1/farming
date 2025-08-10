@@ -224,7 +224,7 @@ const marketItems: MarketItem[] = [
     id: 19, // Energy Booster
     name: 'Energy Booster',
     description: 'Replenish your energy by 25 points. Required for farming actions like planting, watering, and harvesting.',
-    usdPrice: import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? 10 : 25,
+    usdPrice: (import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' || import.meta.env.VITE_CURRENT_CHAIN === 'PHAROS') ? 10 : 25,
     currency: 'RT',
     category: 'upgrades',
     rarity: 'epic',
