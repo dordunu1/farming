@@ -223,15 +223,15 @@ const marketItems: MarketItem[] = [
   {
     id: 19, // Energy Booster
     name: 'Energy Booster',
-    description: 'Replenish your energy to continue farming',
-    usdPrice: 25,
+    description: 'Replenish your energy by 25 points. Required for farming actions like planting, watering, and harvesting.',
+    usdPrice: import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA' ? 10 : 25,
     currency: 'RT',
     category: 'upgrades',
     rarity: 'epic',
     icon: <Zap className="w-6 h-6 text-yellow-500" />,
     level: 1,
-    benefits: ['+5 energy', 'Continue farming'],
-    details: 'Energy Booster: Replenish your energy by 5 points. Required for farming actions like planting, watering, and harvesting.',
+    benefits: ['+25 energy', 'Continue farming'],
+    details: 'Energy Booster: Replenish your energy by 25 points. Required for farming actions like planting, watering, and harvesting.',
     supply: 500000
   },
 ];

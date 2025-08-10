@@ -174,7 +174,7 @@ exports.verifyPlayer = require('firebase-functions').https.onRequest(async (req,
 
     // Connect to Somnia testnet
     const provider = new ethers.JsonRpcProvider('https://rpc.ankr.com/somnia_testnet/6e3fd81558cf77b928b06b38e9409b4677b637118114e83364486294d5ff4811');
-    const contract = new ethers.Contract('0x260dDaeAF6e47183A9B4778B8C5A793904467D56', ABI, provider);
+    const contract = new ethers.Contract('0xa56919e3b51cE5e8cce02e76f145d9732db89c04', ABI, provider);
 
     // Check on-chain RT balance
     const riceTokens = await contract.riceTokens(onChainAddress);
@@ -276,7 +276,7 @@ exports.verifyPlayerByEmail = require('firebase-functions').https.onRequest(asyn
     }
     // Connect to Somnia testnet
     const provider = new ethers.JsonRpcProvider('https://rpc.ankr.com/somnia_testnet/6e3fd81558cf77b928b06b38e9409b4677b637118114e83364486294d5ff4811');
-    const contract = new ethers.Contract('0x260dDaeAF6e47183A9B4778B8C5A793904467D56', ABI, provider);
+    const contract = new ethers.Contract('0xa56919e3b51cE5e8cce02e76f145d9732db89c04', ABI, provider);
     // Check on-chain RT balance
     const riceTokens = await contract.riceTokens(inGameWallet);
     const balance = Number(riceTokens);
