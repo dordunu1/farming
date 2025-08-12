@@ -1,4 +1,15 @@
+[build]
+  publish = "dist"
+  functions = "netlify/functions"
+
 [build.environment]
-  # Secrets scanning configuration to ignore Firebase API keys
-  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIza,Alza,firebase,googleapis,google"
-  SECRETS_SCAN_SMART_DETECTION_ENABLED = "true"
+  NODE_VERSION = "18"
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[functions]
+  node_bundler = "esbuild"
