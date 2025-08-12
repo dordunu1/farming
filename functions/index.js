@@ -177,20 +177,42 @@ exports.verifyPlayer = require('firebase-functions').https.onRequest(async (req,
     const contract = new ethers.Contract('0xa56919e3b51cE5e8cce02e76f145d9732db89c04', ABI, provider);
 
     // Check on-chain RT balance
-    const riceTokens = await contract.riceTokens(onChainAddress);
-    const balance = Number(riceTokens);
+    let riceTokens = 0;
+    try {
+      const onChainBalance = await contract.riceTokens(onChainAddress);
+      riceTokens = Number(onChainBalance);
+    } catch (err) {
+      console.log('On-chain balance check failed, using fallback:', err.message);
+      // If on-chain check fails, we'll use the fallback verification method
+    }
 
-    // Check if player has earned at least 200 RT
-    const hasEarnedEnoughRT = balance >= 200;
+    // Check if player has earned at least 200 RT (on-chain)
+    const hasEarnedEnoughRT = riceTokens >= 200;
+
+    // If on-chain verification fails, check if user has submitted a local RT balance
+    let localRTBalance = 0;
+    let localVerification = false;
+    
+    if (!hasEarnedEnoughRT && userData.riceTokens) {
+      localRTBalance = Number(userData.riceTokens);
+      localVerification = localRTBalance >= 200;
+    }
+
+    // Final verification result - either on-chain or local submission
+    const finalVerification = hasEarnedEnoughRT || localVerification;
+    const verificationSource = hasEarnedEnoughRT ? 'on-chain' : (localVerification ? 'local-submission' : 'failed');
 
     return res.json({
       success: true,
       walletAddress: checksummedAddress,
       inGameWalletAddress: onChainAddress,
-      riceTokensBalance: balance,
-      hasEarnedEnoughRT: hasEarnedEnoughRT,
-      verified: hasEarnedEnoughRT,
-      timestamp: new Date().toISOString()
+      onChainRTBalance: riceTokens,
+      submittedRTBalance: localRTBalance,
+      hasEarnedEnoughRT: finalVerification,
+      verified: finalVerification,
+      verificationSource: verificationSource,
+      timestamp: new Date().toISOString(),
+      note: localVerification ? 'Verified using submitted RT balance' : (hasEarnedEnoughRT ? 'Verified using on-chain balance' : 'Verification failed')
     });
 
   } catch (err) {

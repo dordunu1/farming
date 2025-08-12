@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {ShoppingCart, Trophy, User, BookOpen, Bell, Box, Sprout, Globe, AlertTriangle, X } from 'lucide-react';
+import {ShoppingCart, Trophy, User, BookOpen, Bell, Box, Sprout, Globe } from 'lucide-react';
 import HomeScreen from './components/HomeScreen';
 import Marketplace from './components/Marketplace';
 import Tutorial from './components/Tutorial';
@@ -62,7 +62,6 @@ function App() {
   });
   const [shredsStatus, setShredsStatus] = useState<any>(null);
   const [useReown, setUseReown] = useState(false);
-  const [showSomniaEnergyWarning, setShowSomniaEnergyWarning] = useState(false);
 
   // Onboarding steps for nav bar
   const navSteps = [
@@ -296,15 +295,6 @@ function App() {
     const timer = setTimeout(checkShredsStatus, 2000);
     
     return () => clearTimeout(timer);
-  }, []);
-
-  // Check if user is on Somnia chain and show energy warning
-  useEffect(() => {
-    const isSomnia = import.meta.env.VITE_CURRENT_CHAIN === 'SOMNIA';
-    if (isSomnia) {
-      // Show warning on every page refresh for Somnia users
-      setShowSomniaEnergyWarning(true);
-    }
   }, []);
 
   const [showDevNote, setShowDevNote] = useState(true);
@@ -583,42 +573,6 @@ function App() {
             )}
           </AnimatePresence>
         </main>
-
-        {/* Somnia Energy Warning Toast - Shows on every refresh for Somnia users */}
-        {showSomniaEnergyWarning && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 max-w-md w-full mx-4"
-          >
-            <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 shadow-lg">
-              <div className="flex items-start space-x-3">
-                <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h3 className="font-semibold text-amber-800 mb-2">⚠️ Energy Management Warning</h3>
-                  <p className="text-amber-700 text-sm mb-3">
-                    <strong>IMPORTANT:</strong> Do not use all your energy planting seeds! If you run out of energy, you will be <strong>LOCKED OUT</strong> and unable to harvest your crops.
-                  </p>
-                  <p className="text-amber-700 text-sm mb-3">
-                    <strong>Strategy:</strong> Plant a few seeds, save energy for harvesting, and read the complete game guide to understand the energy system.
-                  </p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-amber-800 text-sm font-medium">
-                      📖 Read the guide
-                    </span>
-                    <button 
-                      onClick={() => setShowSomniaEnergyWarning(false)}
-                      className="text-amber-600 hover:text-amber-800 transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
 
         {/* Enhanced Bottom Navigation */}
         <motion.nav 
