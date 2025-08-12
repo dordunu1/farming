@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "E:\\farming\\contracts\\FluentFarming.sol": {
-      "lastModificationDate": 1754662060928,
-      "contentHash": "c94c547adc6ced4572c83178e582d164",
+      "lastModificationDate": 1754832667858,
+      "contentHash": "884829612d8a58bb79bb4168706e16a4",
       "sourceName": "contracts/FluentFarming.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -309,8 +309,8 @@
       ]
     },
     "E:\\farming\\contracts\\PharosFarming.sol": {
-      "lastModificationDate": 1753327684174,
-      "contentHash": "15adffcb67ad00c6979adda74a34b019",
+      "lastModificationDate": 1754815385323,
+      "contentHash": "48dd0449ed6c26db5157cd42a9977378",
       "sourceName": "contracts/PharosFarming.sol",
       "solcConfig": {
         "version": "0.8.24",

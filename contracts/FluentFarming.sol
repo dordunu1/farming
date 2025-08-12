@@ -141,96 +141,96 @@ contract FluentFarming is Ownable, Pausable, ReentrancyGuard {
         questRewards[2] = 2; // 2 RT for watering 5 plots
         questRewards[3] = 3; // 3 RT for harvesting 2 plots
 
-        // Update Basic Rice Seed (Single)
+        // Update Basic Rice Seed (Single) - 15x multiplier applied to supplies
         items[BASIC_SEED_SINGLE_ID] = Item({
             id: BASIC_SEED_SINGLE_ID,
             name: "Basic Rice Seed (Single)",
             itemType: 0,
-            priceETH: 400000000000000, // 0.0004 ETH
+            priceETH: 400000000000000, // 0.0004 ETH (price unchanged)
             paymentToken: address(0),
             baseReward: 15,
             baseGrowthTime: 420, // 7 minutes
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 10000,
-            supply: 10000
+            maxSupply: 150000, // 10000 * 15
+            supply: 150000     // 10000 * 15
         });
-        // Update Basic Rice Seed (Bundle)
+        // Update Basic Rice Seed (Bundle) - 15x multiplier applied to supplies
         bundles[13] = Bundle({
             id: 13,
             name: "Basic Rice Seed (Bundle)",
             itemIds: new uint256[](1),
             itemAmounts: new uint256[](1),
-            priceETH: 600000000000000, // 0.0006 ETH
+            priceETH: 600000000000000, // 0.0006 ETH (price unchanged)
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 15000, // 1000 * 15
+            supply: 15000     // 1000 * 15
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
         items[BASIC_SEED_SINGLE_ID].growthBonusBP = 15;
         items[BASIC_SEED_SINGLE_ID].yieldBonusBP = 15;
 
-        // Update Premium Rice Seed (Single)
+        // Update Premium Rice Seed (Single) - 15x multiplier applied to supplies
         items[PREMIUM_SEED_SINGLE_ID] = Item({
             id: PREMIUM_SEED_SINGLE_ID,
             name: "Premium Rice Seed (Single)",
             itemType: 0,
-            priceETH: 600000000000000, // 0.0006 ETH
+            priceETH: 600000000000000, // 0.0006 ETH (price unchanged)
             paymentToken: address(0),
             baseReward: 50,
             baseGrowthTime: 360, // 6 minutes
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 4000,
-            supply: 4000
+            maxSupply: 60000, // 4000 * 15
+            supply: 60000     // 4000 * 15
         });
-        // Update Premium Rice Seed (Bundle)
+        // Update Premium Rice Seed (Bundle) - 15x multiplier applied to supplies
         bundles[14] = Bundle({
             id: 14,
             name: "Premium Rice Seed (Bundle)",
             itemIds: new uint256[](1),
             itemAmounts: new uint256[](1),
-            priceETH: 1000000000000000, // 0.0010 ETH
+            priceETH: 1000000000000000, // 0.0010 ETH (price unchanged)
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 15000, // 1000 * 15
+            supply: 15000     // 1000 * 15
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
         items[PREMIUM_SEED_SINGLE_ID].growthBonusBP = 30;
         items[PREMIUM_SEED_SINGLE_ID].yieldBonusBP = 30;
 
-        // Update Hybrid Rice Seed (Single)
+        // Update Hybrid Rice Seed (Single) - 15x multiplier applied to supplies
         items[HYBRID_SEED_SINGLE_ID] = Item({
             id: HYBRID_SEED_SINGLE_ID,
             name: "Hybrid Rice Seed (Single)",
             itemType: 0,
-            priceETH: 1000000000000000, // 0.0010 ETH
+            priceETH: 1000000000000000, // 0.0010 ETH (price unchanged)
             paymentToken: address(0),
             baseReward: 70,
             baseGrowthTime: 300, // 5 minutes
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 2000,
-            supply: 2000
+            maxSupply: 30000, // 2000 * 15
+            supply: 30000     // 2000 * 15
         });
-        // Update Hybrid Rice Seed (Bundle)
+        // Update Hybrid Rice Seed (Bundle) - 15x multiplier applied to supplies
         bundles[15] = Bundle({
             id: 15,
             name: "Hybrid Rice Seed (Bundle)",
             itemIds: new uint256[](1),
             itemAmounts: new uint256[](1),
-            priceETH: 1400000000000000, // 0.0014 ETH
+            priceETH: 1400000000000000, // 0.0014 ETH (price unchanged)
             paymentToken: address(0),
             active: true,
-            maxSupply: 500,
-            supply: 500
+            maxSupply: 7500, // 500 * 15
+            supply: 7500     // 500 * 15
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;
@@ -238,32 +238,32 @@ contract FluentFarming is Ownable, Pausable, ReentrancyGuard {
         items[HYBRID_SEED_SINGLE_ID].growthBonusBP = 70;
         items[HYBRID_SEED_SINGLE_ID].yieldBonusBP = 70;
 
-        // Golden Harvester (Single)
+        // Golden Harvester (Single) - 15x multiplier applied to supplies
         items[GOLDEN_HARVESTER_SINGLE_ID] = Item({
             id: GOLDEN_HARVESTER_SINGLE_ID,
             name: "Golden Harvester (Single)",
             itemType: 1,
-            priceETH: 800000000000000, // 0.0008 ETH
+            priceETH: 800000000000000, // 0.0008 ETH (price unchanged)
             paymentToken: address(0),
             baseReward: 0,
             baseGrowthTime: 0,
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 3750,
-            supply: 3750
+            maxSupply: 56250, // 3750 * 15
+            supply: 56250     // 3750 * 15
         });
-        // Golden Harvester (Bundle)
+        // Golden Harvester (Bundle) - 15x multiplier applied to supplies
         bundles[16] = Bundle({
             id: 16,
             name: "Golden Harvester (Bundle)",
             itemIds: new uint256[](1),
             itemAmounts: new uint256[](1),
-            priceETH: 1600000000000000, // 0.0016 ETH
+            priceETH: 1600000000000000, // 0.0016 ETH (price unchanged)
             paymentToken: address(0),
             active: true,
-            maxSupply: 1875,
-            supply: 1875
+            maxSupply: 28125, // 1875 * 15
+            supply: 28125     // 1875 * 15
         });
         bundles[16].itemIds[0] = GOLDEN_HARVESTER_SINGLE_ID;
         bundles[16].itemAmounts[0] = 2;
@@ -328,48 +328,48 @@ contract FluentFarming is Ownable, Pausable, ReentrancyGuard {
             supply: 50000
         });
 
-        // Initialize bundles with supply
+        // Initialize bundles with supply - 15x multiplier applied to supplies
         // Basic Rice Seed (Bundle): 5x Basic Rice Seed (Single)
         bundles[13] = Bundle({
             id: 13,
             name: "Basic Rice Seed (Bundle)",
             itemIds: new uint256[](1),
             itemAmounts: new uint256[](1),
-            priceETH: 600000000000000, // 0.0006 ETH
+            priceETH: 600000000000000, // 0.0006 ETH (price unchanged)
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 15000, // 1000 * 15
+            supply: 15000     // 1000 * 15
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
 
-        // Premium Rice Seed (Bundle): 2x Premium Rice Seed (Single)
+        // Premium Rice Seed (Bundle): 2x Premium Rice Seed (Single) - 15x multiplier applied to supplies
         bundles[14] = Bundle({
             id: 14,
             name: "Premium Rice Seed (Bundle)",
             itemIds: new uint256[](1),
             itemAmounts: new uint256[](1),
-            priceETH: 1000000000000000, // 0.0010 ETH
+            priceETH: 1000000000000000, // 0.0010 ETH (price unchanged)
             paymentToken: address(0),
             active: true,
-            maxSupply: 1000,
-            supply: 1000
+            maxSupply: 15000, // 1000 * 15
+            supply: 15000     // 1000 * 15
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
 
-        // Hybrid Rice Seed (Bundle, 2x)
+        // Hybrid Rice Seed (Bundle, 2x) - 15x multiplier applied to supplies
         bundles[15] = Bundle({
             id: 15,
             name: "Hybrid Rice Seed (Bundle)",
             itemIds: new uint256[](1),
             itemAmounts: new uint256[](1),
-            priceETH: 1400000000000000, // 0.0014 ETH
+            priceETH: 1400000000000000, // 0.0014 ETH (price unchanged)
             paymentToken: address(0),
             active: true,
-            maxSupply: 500,
-            supply: 500
+            maxSupply: 7500, // 500 * 15
+            supply: 7500     // 500 * 15
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;

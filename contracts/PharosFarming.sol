@@ -140,7 +140,7 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
         questRewards[2] = 2; // 2 RT for watering 5 plots
         questRewards[3] = 3; // 3 RT for harvesting 2 plots
 
-        // Update Basic Rice Seed (Single)
+        // Update Basic Rice Seed (Single) - 150x multiplier
         items[BASIC_SEED_SINGLE_ID] = Item({
             id: BASIC_SEED_SINGLE_ID,
             name: "Basic Rice Seed (Single)",
@@ -152,10 +152,10 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 1500000, // 10000 * 150
+            supply: 1500000     // 10000 * 150
         });
-        // Update Basic Rice Seed (Bundle)
+        // Update Basic Rice Seed (Bundle) - 150x multiplier
         bundles[13] = Bundle({
             id: 13,
             name: "Basic Rice Seed (Bundle)",
@@ -164,15 +164,15 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 PHRS
             paymentToken: address(0),
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 150000, // 1000 * 150
+            supply: 150000     // 1000 * 150
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
         items[BASIC_SEED_SINGLE_ID].growthBonusBP = 15;
         items[BASIC_SEED_SINGLE_ID].yieldBonusBP = 15;
 
-        // Update Premium Rice Seed (Single)
+        // Update Premium Rice Seed (Single) - 150x multiplier
         items[PREMIUM_SEED_SINGLE_ID] = Item({
             id: PREMIUM_SEED_SINGLE_ID,
             name: "Premium Rice Seed (Single)",
@@ -184,10 +184,10 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 600000, // 4000 * 150
+            supply: 600000     // 4000 * 150
         });
-        // Update Premium Rice Seed (Bundle)
+        // Update Premium Rice Seed (Bundle) - 150x multiplier
         bundles[14] = Bundle({
             id: 14,
             name: "Premium Rice Seed (Bundle)",
@@ -196,15 +196,15 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 PHRS
             paymentToken: address(0),
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 150000, // 1000 * 150
+            supply: 150000     // 1000 * 150
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
         items[PREMIUM_SEED_SINGLE_ID].growthBonusBP = 30;
         items[PREMIUM_SEED_SINGLE_ID].yieldBonusBP = 30;
 
-        // Update Hybrid Rice Seed (Single)
+        // Update Hybrid Rice Seed (Single) - 150x multiplier
         items[HYBRID_SEED_SINGLE_ID] = Item({
             id: HYBRID_SEED_SINGLE_ID,
             name: "Hybrid Rice Seed (Single)",
@@ -216,10 +216,10 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 300000, // 2000 * 150
+            supply: 300000     // 2000 * 150
         });
-        // Update Hybrid Rice Seed (Bundle)
+        // Update Hybrid Rice Seed (Bundle) - 150x multiplier
         bundles[15] = Bundle({
             id: 15,
             name: "Hybrid Rice Seed (Bundle)",
@@ -228,8 +228,8 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 PHRS
             paymentToken: address(0),
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 75000, // 500 * 150
+            supply: 75000     // 500 * 150
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;
@@ -237,7 +237,7 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
         items[HYBRID_SEED_SINGLE_ID].growthBonusBP = 70;
         items[HYBRID_SEED_SINGLE_ID].yieldBonusBP = 70;
 
-        // Golden Harvester (Single)
+        // Golden Harvester (Single) - 150x multiplier
         items[GOLDEN_HARVESTER_SINGLE_ID] = Item({
             id: GOLDEN_HARVESTER_SINGLE_ID,
             name: "Golden Harvester (Single)",
@@ -249,10 +249,10 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             growthBonusBP: 0,
             yieldBonusBP: 0,
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 562500, // 3750 * 150
+            supply: 562500     // 3750 * 150
         });
-        // Golden Harvester (Bundle)
+        // Golden Harvester (Bundle) - 150x multiplier
         bundles[16] = Bundle({
             id: 16,
             name: "Golden Harvester (Bundle)",
@@ -261,8 +261,8 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 PHRS
             paymentToken: address(0),
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 281250, // 1875 * 150
+            supply: 281250     // 1875 * 150
         });
         bundles[16].itemIds[0] = GOLDEN_HARVESTER_SINGLE_ID;
         bundles[16].itemAmounts[0] = 2;
@@ -327,7 +327,7 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             supply: 20000
         });
 
-        // Initialize bundles with supply
+        // Initialize bundles with supply - 150x multiplier
         // Basic Rice Seed (Bundle): 5x Basic Rice Seed (Single)
         bundles[13] = Bundle({
             id: 13,
@@ -337,13 +337,13 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 PHRS
             paymentToken: address(0),
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 150000, // 1000 * 150
+            supply: 150000     // 1000 * 150
         });
         bundles[13].itemIds[0] = BASIC_SEED_SINGLE_ID;
         bundles[13].itemAmounts[0] = 5;
 
-        // Premium Rice Seed (Bundle): 2x Premium Rice Seed (Single)
+        // Premium Rice Seed (Bundle): 2x Premium Rice Seed (Single) - 150x multiplier
         bundles[14] = Bundle({
             id: 14,
             name: "Premium Rice Seed (Bundle)",
@@ -352,13 +352,13 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 PHRS
             paymentToken: address(0),
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 150000, // 1000 * 150
+            supply: 150000     // 1000 * 150
         });
         bundles[14].itemIds[0] = PREMIUM_SEED_SINGLE_ID;
         bundles[14].itemAmounts[0] = 2;
 
-        // Hybrid Rice Seed (Bundle, 2x)
+        // Hybrid Rice Seed (Bundle, 2x) - 150x multiplier
         bundles[15] = Bundle({
             id: 15,
             name: "Hybrid Rice Seed (Bundle)",
@@ -367,8 +367,8 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
             priceETH: 20000000000000000, // 0.02 PHRS
             paymentToken: address(0),
             active: true,
-            maxSupply: 20000,
-            supply: 20000
+            maxSupply: 75000, // 500 * 150
+            supply: 75000     // 500 * 150
         });
         bundles[15].itemIds[0] = HYBRID_SEED_SINGLE_ID;
         bundles[15].itemAmounts[0] = 2;
@@ -844,9 +844,9 @@ contract PharosFarming is Ownable, Pausable, ReentrancyGuard {
         hasClaimedInitialEnergy[msg.sender] = true;
     }
 
-    // --- Buy Energy Booster (25 RT for 25 energy) ---
+    // --- Buy Energy Booster (10 RT for 25 energy) ---
     function buyEnergyBooster() external whenNotPaused nonReentrant {
-        uint256 boosterCost = 25; // 25 RT per booster
+        uint256 boosterCost = 10; // 10 RT per booster
         uint256 energyAmount = 25; // Each booster gives 25 energy
         require(riceTokens[msg.sender] >= boosterCost, "Not enough RT");
         require(items[ENERGY_BOOSTER_ID].supply > 0, "Energy Booster sold out");
