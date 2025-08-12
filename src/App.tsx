@@ -7,6 +7,7 @@ import Tutorial from './components/Tutorial';
 import Leaderboard from './components/Leaderboard';
 import Profile from './components/Profile';
 import NotificationCenter from './components/NotificationCenter';
+import MaintenanceMode from './components/MaintenanceMode';
 import { useAccount, useSignMessage } from 'wagmi';
 import type { Notification } from './components/NotificationCenter';
 import Inventory from './components/Inventory';
@@ -24,6 +25,9 @@ import { ethers } from 'ethers';
 import { shredsService } from './services/shredsService';
 
 function App() {
+  // Check if maintenance mode is enabled
+  const isMaintenanceMode = import.meta.env.VITE_MAINTENANCE_MODE === 'true';
+  
   const [activeTab, setActiveTab] = useState('farm');
   const [showTutorial, setShowTutorial] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -659,6 +663,8 @@ function App() {
           notifications={notifications}
           setNotifications={setNotifications}
         />
+
+        {isMaintenanceMode && <MaintenanceMode isMaintenanceMode={isMaintenanceMode} />}
       </div>
     </>
   );
