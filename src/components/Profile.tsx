@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Star, Coins, Trophy, CheckCircle, Wallet, X, Loader2, LogOut, Fuel } from 'lucide-react';
+import { User, Star, Coins, Trophy, CheckCircle, Wallet, X, Loader2, LogOut, Fuel, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAccount, useWriteContract } from 'wagmi';
 // @ts-ignore
@@ -56,6 +56,11 @@ export default function Profile({
   const [claimTxHash, setClaimTxHash] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [emailSaved, setEmailSaved] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [rtSubmission, setRtSubmission] = useState(201);
 
   // Fetch on-chain RT balance
   const { data: onChainRiceTokens, refetch: refetchRiceTokens } = useContractRead({
@@ -153,6 +158,39 @@ export default function Profile({
     if (address) {
       console.log('🔄 Refreshing wallet for user:', address);
       await refreshWallet(address);
+    }
+  };
+
+  // Handle RT submission for verification
+  const handleRTSubmission = async () => {
+    if (!gameWallet?.address || !address) {
+      setSubmitError('Wallet not available');
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmitError('');
+    setSubmitSuccess(false);
+
+    try {
+      // Store the RT balance in the user's riceTokens field
+      const userRef = doc(db, 'chains', 'SOMNIA', 'users', address);
+      await setDoc(userRef, {
+        riceTokens: rtSubmission,
+        rtSubmissionTimestamp: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+      }, { merge: true });
+
+      setSubmitSuccess(true);
+      // Optionally refresh user stats
+      if (address) {
+        getUserData(address).then(data => setUserStats(data));
+      }
+    } catch (err: any) {
+      console.error('RT submission error:', err);
+      setSubmitError(err.message || 'Submission failed');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -275,6 +313,100 @@ export default function Profile({
               </button>
               <div className="text-xs text-gray-500 mt-2">
                 This will regenerate your wallet from your stored signature.
+              </div>
+            </div>
+          )}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  // RT Submission Modal
+  function RTSubmissionModal() {
+    return ReactDOM.createPortal(
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowSubmitModal(false)}>
+        <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md relative" onClick={e => e.stopPropagation()}>
+          <button className="absolute top-3 right-3 text-gray-400 hover:text-gray-700" onClick={() => setShowSubmitModal(false)}>
+            <X className="w-5 h-5" />
+          </button>
+          
+          <div className="flex items-center gap-2 mb-4">
+            <Coins className="w-6 h-6 text-yellow-600" />
+            <span className="font-semibold text-gray-800 text-lg">Submit RT Balance for Verification</span>
+          </div>
+
+          <div className="mb-4">
+            <p className="text-sm text-gray-600 mb-3">
+              Since you have used up all your energy and can't progress, submit your RT balance to verify on the quest. This will be stored and used as a fallback verification method.
+            </p>
+            
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Your RT Balance
+              </label>
+              <input
+                type="number"
+                value={rtSubmission}
+                readOnly
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 cursor-not-allowed"
+                placeholder="201 RT"
+                min="1"
+              />
+            </div>
+
+            <div className="text-xs text-gray-500 mb-4">
+              <p>• This will be stored in your profile for verification</p>
+              <p>• Your on-chain balance: {onChainRT ?? '...'} RT</p>
+              <p>• Current requirement: 200 RT minimum</p>
+              <p>• Submission value: 201 RT (above requirement)</p>
+              <p>• After submission, you can verify on the quest</p>
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition"
+              onClick={() => setShowSubmitModal(false)}
+            >
+              Cancel
+            </button>
+            <button
+              className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2 disabled:opacity-60"
+              onClick={handleRTSubmission}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="animate-spin w-4 h-4" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  Submit
+                </>
+              )}
+            </button>
+          </div>
+
+          {submitSuccess && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 text-green-700">
+                <CheckCircle className="w-5 h-5" />
+                <span className="font-medium">RT balance submitted successfully!</span>
+              </div>
+              <p className="text-sm text-green-600 mt-1">
+                Your RT balance ({rtSubmission} RT) has been stored in your profile. You can now try verifying using the verification system.
+              </p>
+            </div>
+          )}
+
+          {submitError && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="text-red-700 text-sm">
+                <div className="font-medium">Submission Error:</div>
+                <div>{submitError}</div>
               </div>
             </div>
           )}
@@ -572,6 +704,17 @@ export default function Profile({
               You need at least 500 RT to claim RISE tokens.<br />Current balance: {Number(onChainRiceTokens || 0)} RT
             </div>
           )}
+
+          {/* Add RT Submission Button for Verification - Only show if user has less than 2 RT */}
+          {Number(onChainRiceTokens || 0) < 2 && (
+            <button
+              className="mt-2 w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow flex items-center justify-center gap-2"
+              onClick={() => setShowSubmitModal(true)}
+            >
+              <Send className="w-4 h-4" />
+              Submit RT for Verification
+            </button>
+          )}
         </div>
         <div className="bg-blue-50/70 backdrop-blur rounded-xl p-3 flex flex-col gap-1 border border-blue-100 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
@@ -597,6 +740,7 @@ export default function Profile({
       </div>
 
       {showWalletModal && <WalletModal />}
+      {showSubmitModal && <RTSubmissionModal />}
     </div>
   );
 }
