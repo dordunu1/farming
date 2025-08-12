@@ -1,0 +1,7 @@
+{
+  "name": "netlify-functions",
+  "version": "1.0.0",
+  "dependencies": {
+    "ethers": "^6.0.0"
+  }
+}
