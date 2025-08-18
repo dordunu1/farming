@@ -529,6 +529,9 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
   const filteredItems = marketItems.filter((item: MarketItem) => {
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // In Rise environment, show bundle items but mark them as unavailable
+    // Users can still see them to know what's coming in future updates
     return matchesCategory && matchesSearch;
   });
 
@@ -632,6 +635,13 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
       openConnectModal?.();
       return;
     }
+    
+    // Prevent bundle purchases in Rise environment (excluding Energy Booster and Fertilizer Spreader)
+    if (import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id)) {
+      alert('Bundles will be available in later updates for the Rise environment.');
+      return;
+    }
+    
     setSelectedItem(item);
     setQuantity(1);
     setBuyModalOpen(true);
@@ -811,6 +821,15 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 <span className="text-xs text-gray-500">Ultra-fast transactions (~5ms)</span>
               </div>
             )}
+            {/* Rise bundle availability notice */}
+            {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && (
+              <div className="flex items-center gap-2 mt-2">
+                <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
+                  <span>ℹ️</span>
+                  <span>Bundles coming in later updates</span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             {/* Energy Display */}
@@ -832,7 +851,14 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             )}
             <div className="flex items-center space-x-2 text-sm">
               <TrendingUp className="w-4 h-4 text-green-500" />
-              <span className="text-gray-600">{marketItems.length} items available</span>
+              <span className="text-gray-600">
+                {marketItems.length} items available
+                {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && (
+                  <span className="text-blue-600 ml-1">
+                    ({marketItems.filter(item => item.category === 'bundle' && ![12, 19].includes(item.id)).length} bundles coming soon)
+                  </span>
+                )}
+              </span>
             </div>
           </div>
         </div>
@@ -852,17 +878,27 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
           </div>
           <div className="flex space-x-2">
             {(['all', 'seeds', 'tools', 'upgrades', 'bundle'] as const).map((category) => (
-              <button
-                key={category}
-                onClick={() => setSelectedCategory(category)}
-                className={`px-4 py-2 rounded-lg font-medium capitalize transition-all ${
-                  selectedCategory === category
-                    ? 'bg-green-500 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </button>
+              <div key={category} className="relative">
+                <button
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-lg font-medium capitalize transition-all ${
+                    selectedCategory === category
+                      ? 'bg-green-500 text-white'
+                      : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                  {category === 'bundle' && import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && (
+                    <span className="ml-1 text-xs">⚠️</span>
+                  )}
+                </button>
+                {category === 'bundle' && import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-800 text-white text-xs rounded-lg p-2 opacity-0 hover:opacity-100 transition-opacity pointer-events-none z-50">
+                    Bundles not available in Rise yet
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -932,7 +968,11 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
             return (
               <div
                 key={item.id}
-                className={`rounded-xl border-2 ${getCardColor(item.rarity)} p-6 shadow-sm transition-transform duration-200 hover:shadow-lg hover:scale-[1.03] flex flex-col justify-between min-w-[220px] max-w-xs mx-auto relative`}
+                className={`rounded-xl border-2 p-6 shadow-sm transition-transform duration-200 flex flex-col justify-between min-w-[220px] max-w-xs mx-auto relative ${
+                  import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id)
+                    ? 'border-gray-300 bg-gray-100 opacity-75'
+                    : `${getCardColor(item.rarity)} hover:shadow-lg hover:scale-[1.03]`
+                }`}
                 onMouseEnter={() => setShowDetailsIdx(idx)}
                 onMouseLeave={() => setShowDetailsIdx(null)}
                 onClick={() => setShowDetailsIdx(idx)}
@@ -962,6 +1002,9 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                     {item.rarity === 'epic' && <span className="ml-1">⚡</span>}
                     {item.rarity === 'rare' && <span className="ml-1">↗</span>}
                     {item.rarity === 'common' && <span className="ml-1">🪙</span>}
+                    {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id) && (
+                      <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-600 text-xs rounded-full font-medium">Rise</span>
+                    )}
                   </h3>
                   <p className="text-xs text-gray-600 mb-1 leading-tight">{item.description}</p>
                   <div className="mb-1">
@@ -980,21 +1023,40 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                   {showUsd && item.currency === NATIVE_SYMBOL && (
                     <span className="text-xs text-gray-500">≈ ${item.usdPrice.toFixed(2)}</span>
                   )}
-                  <button
-                    className="ml-2 px-3 py-1 rounded bg-green-500 text-white text-xs font-semibold hover:bg-green-600 transition-colors"
+                  <div className="relative group">
+                                      <button
+                    className={`ml-2 px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                      (item.comingSoon ||
+                        !isWalletConnected ||
+                        (item.currency === 'RT' && Number(onChainRiceTokens || 0) < item.usdPrice) ||
+                        Number(supply) <= 0 ||
+                        (import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id)))
+                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleBuy(item);
+                      if (!(import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id))) {
+                        handleBuy(item);
+                      }
                     }}
                     disabled={
                       item.comingSoon ||
                       !isWalletConnected ||
                       (item.currency === 'RT' && Number(onChainRiceTokens || 0) < item.usdPrice) ||
-                      Number(supply) <= 0 // disable if supply is 0 or less
+                      Number(supply) <= 0 ||
+                      (import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id))
                     }
                   >
-                    Buy Now
+                    {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id) ? 'Coming Soon' : 'Buy Now'}
                   </button>
+                  {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id) && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-800 text-white text-xs rounded-lg p-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                      Bundles will be available in later updates
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
+                    </div>
+                  )}
+                  </div>
                 </div>
                 {item.currency === 'RT' && isWalletConnected && (
                   <div className="text-xs text-gray-500 mt-1 text-right">
@@ -1003,6 +1065,9 @@ function Marketplace({ isWalletConnected }: MarketplaceProps) {
                 )}
                 {item.comingSoon && (
                   <div className="text-xs text-red-500 font-semibold mt-1 mb-1">Coming Soon</div>
+                )}
+                {import.meta.env.VITE_CURRENT_CHAIN === 'RISE' && item.category === 'bundle' && ![12, 19].includes(item.id) && (
+                  <div className="text-xs text-blue-500 font-semibold mt-1 mb-1">Coming Soon - Rise</div>
                 )}
                 {showDetailsIdx === idx && (
                   <div className="absolute z-50 top-2 left-1/2 -translate-x-1/2 w-72 bg-white border border-gray-300 rounded-xl shadow-xl p-4 text-xs text-gray-700">
