@@ -127,7 +127,8 @@ function App() {
     if (isSuccess && signature && address && !firebaseAuthReady) {
       setIsGeneratingWallet(true); // Set immediately after signature is received
       // Authenticate with backend
-      fetch(import.meta.env.VITE_AUTH_FUNCTION_URL, {
+      const authUrl = import.meta.env.VITE_AUTH_FUNCTION_URL || 'https://authwithwallet-rkn23i2evq-uc.a.run.app';
+      fetch(authUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, signature }),
