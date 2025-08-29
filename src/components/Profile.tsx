@@ -483,10 +483,10 @@ export default function Profile({
     );
   }
 
-  // Use 300 as the XP cap for progress bar and next level
-  const xpForNextLevel = 300;
+  // Use 1000 as the XP cap for progress bar and next level
+  const xpForNextLevel = 1000;
   const currentLevelXP = userStats.totalXP;
-  const progressPercentage = (currentLevelXP / 300) * 100;
+  const progressPercentage = (currentLevelXP / xpForNextLevel) * 100;
 
   return (
     <div className="bg-white rounded-lg shadow-lg p-4 max-w-md mx-auto text-center relative" style={{ marginTop: '12px' }}>
@@ -567,7 +567,7 @@ export default function Profile({
             />
           </div>
           <p className="text-xs text-gray-500 mt-1 text-right">
-            {currentLevelXP}/300 XP to next level
+            {currentLevelXP}/{xpForNextLevel} XP to next level
           </p>
         </div>
         <div className="bg-yellow-50/70 backdrop-blur rounded-xl p-3 flex flex-col gap-1 border border-yellow-100 shadow-sm">
@@ -705,16 +705,7 @@ export default function Profile({
             </div>
           )}
 
-          {/* Add RT Submission Button for Verification - Only show if user has less than 2 RT */}
-          {Number(onChainRiceTokens || 0) < 2 && (
-            <button
-              className="mt-2 w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow flex items-center justify-center gap-2"
-              onClick={() => setShowSubmitModal(true)}
-            >
-              <Send className="w-4 h-4" />
-              Submit RT for Verification
-            </button>
-          )}
+          {/* Submit for verification button removed */}
         </div>
         <div className="bg-blue-50/70 backdrop-blur rounded-xl p-3 flex flex-col gap-1 border border-blue-100 shadow-sm">
           <div className="flex items-center gap-2 mb-1">
