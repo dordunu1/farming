@@ -303,6 +303,10 @@ function App() {
   }, []);
 
   const [showDevNote, setShowDevNote] = useState(true);
+  const [showBetaPopup, setShowBetaPopup] = useState(() => {
+    // Check if user has already seen the beta popup
+    return localStorage.getItem('hasSeenBetaPopup') !== 'true';
+  });
 
   if (!isConnected) {
     // Enhanced connect overlay
@@ -692,6 +696,111 @@ function App() {
         />
 
         {isMaintenanceMode && <MaintenanceMode isMaintenanceMode={isMaintenanceMode} />}
+
+        {/* Beta Testing Popup */}
+        <AnimatePresence>
+          {showBetaPopup && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.8, opacity: 0, y: 20 }}
+                transition={{ type: "spring", duration: 0.5 }}
+                className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 relative overflow-hidden"
+              >
+                {/* Background decoration */}
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-emerald-200/30 to-green-200/30 rounded-full -translate-y-16 translate-x-16"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-yellow-200/30 to-orange-200/30 rounded-full translate-y-12 -translate-x-12"></div>
+                
+                {/* Close button */}
+                <button
+                  onClick={() => {
+                    setShowBetaPopup(false);
+                    localStorage.setItem('hasSeenBetaPopup', 'true');
+                  }}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                {/* Header */}
+                <div className="text-center mb-6 relative z-10">
+                  <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 via-green-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <Sprout className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-2">🚀 Beta Testing Coming Soon!</h2>
+                  <p className="text-gray-600">Join our community to get early access to amazing new features!</p>
+                </div>
+
+                {/* Features list */}
+                <div className="mb-6 relative z-10">
+                  <h3 className="text-lg font-semibold text-gray-800 mb-4 text-center">✨ New Features</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-sm text-gray-700">P2P Trading Marketplace - Buy and sell seeds with other players</span>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-sm text-gray-700">Real-time Activity Feed - Track all marketplace transactions</span>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-sm text-gray-700">Trading History - Monitor your complete trading journey</span>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-sm text-gray-700">Multiple Seed Types - Basic, Premium, and Hybrid rice seeds</span>
+                    </div>
+                    <div className="flex items-start space-x-3">
+                      <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0"></div>
+                      <span className="text-sm text-gray-700">Bundle Trading - Trade individual seeds or complete bundles</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Social links */}
+                <div className="flex flex-col space-y-3 relative z-10">
+                  <motion.a
+                    href="https://discord.gg/pxCwMNJyPM"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center justify-center space-x-3 bg-indigo-600 text-white py-3 px-6 rounded-xl font-semibold hover:bg-indigo-700 transition-colors shadow-lg"
+                  >
+                    <img src="/discord.svg" alt="Discord" className="w-5 h-5" />
+                    <span>Join Discord Community</span>
+                  </motion.a>
+                  
+                  <motion.a
+                    href="https://x.com/farmingfield_"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex items-center justify-center space-x-3 bg-gray-900 text-white py-3 px-6 rounded-xl font-semibold hover:bg-gray-800 transition-colors shadow-lg"
+                  >
+                    <img src="/x.svg" alt="X" className="w-5 h-5" />
+                    <span>Follow on X (Twitter)</span>
+                  </motion.a>
+                </div>
+
+                {/* Footer text */}
+                <p className="text-xs text-gray-500 text-center mt-4 relative z-10">
+                  Stay updated for beta launch announcements and exclusive early access!
+                </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );
