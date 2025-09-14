@@ -484,6 +484,32 @@ function App() {
                 <Bell className="w-5 h-5" />
               </motion.button>
 
+              {/* Social Links: X and Discord */}
+              <motion.a
+                href="https://x.com/farmingfield_"
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative overflow-hidden group/x p-3 text-gray-600 hover:text-emerald-600 transition-all duration-200 rounded-xl hover:bg-emerald-50 inline-flex items-center"
+                aria-label="X (Twitter)"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-300/10 to-transparent opacity-0 group-hover/x:opacity-100 transition-opacity duration-300 rounded-xl" />
+                <img src="/x.svg" alt="X" className="w-5 h-5 relative z-10" />
+              </motion.a>
+              <motion.a
+                href="https://discord.gg/pxCwMNJyPM"
+                target="_blank"
+                rel="noopener noreferrer"
+                whileHover={{ scale: 1.1, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                className="relative overflow-hidden group/discord p-3 text-gray-600 hover:text-emerald-600 transition-all duration-200 rounded-xl hover:bg-emerald-50 inline-flex items-center"
+                aria-label="Discord"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-300/10 to-transparent opacity-0 group-hover/discord:opacity-100 transition-opacity duration-300 rounded-xl" />
+                <img src="/discord.svg" alt="Discord" className="w-5 h-5 relative z-10" />
+              </motion.a>
+
               {/* Tutorial Button */}
               <motion.button
                 whileHover={{ scale: 1.1 }}
